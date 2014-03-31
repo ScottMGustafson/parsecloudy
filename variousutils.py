@@ -13,8 +13,6 @@ def int_to_roman(n):
         n -= ints[i] * count
     return result
 
-def roman_to_int(num):
-
 
 def ion_state(i,element):
     """

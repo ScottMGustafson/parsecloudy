@@ -8,7 +8,7 @@ import variousutils
 
 element_names = config.element_names
 species = config.ions
-default = -30.000
+default = -30.000000
 defaults = [default, default, default]  #  best, upper and lower limits default values
 #input_dict = config.get_config_data()
 input_dict = {
@@ -21,54 +21,84 @@ input_dict = {
 
 class Element(object):
     def __init__(self,name,**kwargs):
-        self.name=name
+        self.name=name  #symbol of element (w/o ionization state)
         self.species = species[self.name]
+        #print("%s:%d"%(self.name,species[self.name]))
         for item in input_dict.keys():
-            selfval = kwargs.get(item)
-            try:
+            selfval = kwargs.get(item,[defaults for i in range(self.species)])
+            #correct number of args?
+            try:  
                 assert(len(selfval)==self.species)
             except:
-                msg = str(selfval) + "\n  not of correct length: "+ \
-                              str(self.species)
                 if len(selfval)>self.species:
+                    msg = str(selfval) + "\n  not of correct length "+ \
+                              str(self.species)
                     raise Exception(msg)
                 else:
-                    warnings.warn(msg)
                     while len(selfval)<self.species:
-                        selfval.append(default)
+                        selfval.append(defaults)
+            #include [min,best,max] for each.  
+            for i in range(len(selfval)):  
+                if not type(selfval[i]) is list:
+                    selfval[i] = [selfval[i], selfval[i], selfval[i]]
+                else:
+                    assert(len(selfval[i])==3)
+            #print(selfval)
             setattr(self,item,selfval)
 
     def __eq__(self,observed):
-        if not isinstance(observed,ObsData):
-            msg = """
-              the point of this comparison operator is to compare model 
-              data to observed data.  What are you doing?"""
-            raise Exception(msg)
         if observed.name!=self.name:
             return False
         for item in input_dict.keys():
-            for i in range(species[self.name]):
-                selfval = getattr(self,item)
-                obsval  = getattr(observed,item)
-                if obsval = defaults: #if all default case, skip
-                    continue
-                upper = obsval[i][-1] 
-                lower = obsval[i][0]
-        
-                if isinstance(self,ObsData):
-                    selfmin, selfbest, selfmax = tuple(selfval[i])
-                else:
-                    selfmin, selfbest, selfmax = tuple(selfval[i],selfval[i],selfval[i])
-                #code will ignore default cases
-                if upper == default:  upper=selfbest 
-                if lower == default:  lower=selfbest
-                
-                if lower > selfmax or selfmin > upper:
-                    return False
+            if not self._attr_eq(observed,item):
+                return False
         return True
 
     def __ne__(self,observed):
         return not self.__eq__(observed)
+
+    def __str__(self):
+        out='\n'
+        for i in range(species[self.name]):
+            out += "    %s: N=%5.3lf U=%5.3lf Ue=%5.3lf T=%5.3lf Te=%5.3lf\n" % \
+                (variousutils.ion_state(i,self.name),getattr(self,'column')[i][1],
+                getattr(self,'ionization')[i][1],getattr(self,'ionization_e')[i][1], 
+                getattr(self,'temp')[i][1],getattr(self,'temp_e')[i][1])
+        out+='\n'
+        return out
+
+    def _attr_eq(self,observed,item):
+        selfval = getattr(self,item)
+        obsval  = getattr(observed,item)
+        for i in range(species[self.name]):
+            if obsval[i] == defaults: #if all default case, skip
+                continue
+            def checklen(lst):
+                if not type(lst) is list:
+                    lst = [lst, lst, lst]
+                else:
+                    assert(len(lst)==3)
+                return lst
+
+            selfval[i] = checklen(selfval[i])
+            obsval[i]  = checklen( obsval[i])
+
+            obsmin,  obsbest,  obsmax  = tuple(obsval[i]) 
+            selfmin, selfbest, selfmax = tuple(selfval[i])
+
+
+            def overlap(a,b):
+                conda = a[2] >= b[0] if a[2]!=b[0]!=default else True
+                condb = a[0] <= b[2] if a[0]!=b[2]!=default else True
+                return conda and condb
+
+            if not overlap(obsval[i],selfval[i]):
+                print("self.%s[%i] != other.%s[%i]"%(item,i,item,i))
+                print("other.%s[%i]=[%lf, %lf, %lf]"%(item,i,obsmin,obsbest,obsmax))
+                print("self.%s[%i]=[%lf, %lf, %lf]"%(item,i,selfmin,selfbest,selfmax))
+                return False
+        return True
+        
                     
                 
 class ObsData(Element):
@@ -77,28 +107,31 @@ class ObsData(Element):
         Subclass of Element.   Each physical quantity as list :[min, best, max] 
         where min and max correspond to upper and lower limits.
         """
-        
+        self.name = name
         self.state = int(state)
+        superkwargs={}
         for key, val in kwargs.iteritems():
-            kw[key] = [ defaults for i in range(species[name]) ]
-            kw[key][int(state)] = val
-        super(ObsData,self).__init__(name,**kw)
+            superkwargs[key] = [defaults for i in range(species[self.name])]
+            superkwargs[key][int(state)] = val
+        super(ObsData,self).__init__(name,**superkwargs)
 
     def join(self,absorber):
         """
         join another obsData instance with the current one
         """
         name = self.name+variousutils.int_to_roman(self.state)
-        absname=absorber.name+variousutils.int_to_roman(absorber.state)
+        absname=absorber.name#+variousutils.int_to_roman(absorber.state)
         if self.state == absorber.state:
             msg='cannot join absorbers:  same state '+ \
                 name + '=='+ absname +'\n'
             raise Exception(msg)
         for item in input_dict.keys():
-            try:
-                setattr(self,item[absorber.state],absorber.item[absorber.state])
-            except:
-                raise Exception('cannot join two absorbers: %s, %s\n' % (name,absname))
+            old = getattr(self,item)
+            new = getattr(absorber,item)
+            if old[absorber.state] != defaults:
+                raise Exception('cannot join two absorbers: %s %s\n' % (str(self), str(absorber)))
+            old[absorber.state] = new[absorber.state]
+            setattr(self,item,old)
 
 class Model(object):
     def __init__(self,fstream,input_dict=input_dict):
@@ -114,7 +147,7 @@ class Model(object):
 
         data = {}
         for key,val in input_dict.iteritems():
-            data[key] = self._get_vals(fstream,val))
+            data[key] = self._get_vals(fstream,val)
 
         self.elem = []
         for key, val in element_names.iteritems():
@@ -125,7 +158,7 @@ class Model(object):
             self.elem[elem.name] = elem
 
     def __str__(self):
-        return "a string of the model"
+        return "a string of the model.  write more later"
 
 
     def _get_vals(self, fstream, key):
@@ -308,7 +341,7 @@ def search(observed_vals, model_data):
             
         
 
-def get_observed(fstream=open("observed_data.dat","r"))
+def get_observed(fstream=open("observed/observed_data.dat","r")):
     """
     format of observed data should be:
     C 2 column lower best upper
@@ -316,6 +349,16 @@ def get_observed(fstream=open("observed_data.dat","r"))
     <element name (symbol)> <ionization state> <quantity> lower, best, upper estimate
 
     quantity should follow input_dict's keys
+
+    example input:
+    ` 
+        H 0 column 1 2 3
+        H 0 ionisation 2 3 4
+        C 3 temp 2 3 5
+        C 3 temp_e 4 5 6
+        C 3 column 12 13 14
+    `
+
     """
 
     out={}
@@ -323,7 +366,7 @@ def get_observed(fstream=open("observed_data.dat","r"))
         name, state, qty, low, best, hi = tuple(item.split())
         if qty in input_dict.keys():
             lst = input_dict.keys()
-            dat = {'name':name,lst[lst.index(qty)]=[low,best,hi]}
+            dat = {'name':name,lst[lst.index(qty)]:[low,best,hi]}
             if name in out.keys():
                 out[name].join(ObsData(name, state, **dat))
             else:
@@ -332,9 +375,6 @@ def get_observed(fstream=open("observed_data.dat","r"))
             raise Exception(qty+" not in "+str(input_dict.keys()))
     return out
 
-        
-    
-      
 def main():
     all_outputs = []
     outpath = os.path.join(os.getcwd(),'output')
