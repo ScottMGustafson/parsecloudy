@@ -13,15 +13,15 @@ defaults = [default, default, default]  #  best, upper and lower limits default 
 #input_dict = config.get_config_data()
 input_dict = {
     "column": "(H2)                Log10 Column density (cm^-2)",
-    "ionization": "Log10 Mean Ionisation (over radius)",    
-    "ionization_e": "Log10 Mean Ionisation (over radius*electron density)",
+    "ionisation": "Log10 Mean Ionisation (over radius)",    
+    "ionisation_e": "Log10 Mean Ionisation (over radius*electron density)",
     "temp": "Log10 Mean Temperature (over radius)",
     "temp_e": "Log10 Mean Temperature (over radius*electron density)"
 }
 
 class Element(object):
     def __init__(self,name,**kwargs):
-        self.name=name  #symbol of element (w/o ionization state)
+        self.name=name  #symbol of element (w/o ionisation state)
         self.species = species[self.name]
         #print("%s:%d"%(self.name,species[self.name]))
         for item in input_dict.keys():
@@ -31,9 +31,13 @@ class Element(object):
                 assert(len(selfval)==self.species)
             except:
                 if len(selfval)>self.species:
-                    msg = str(selfval) + "\n  not of correct length "+ \
-                              str(self.species)
-                    raise Exception(msg)
+                    while len(selfval)>self.species:
+                        if float(selfval[-1])!=default:
+                            msg = name+":"+str(selfval) + "\n  not of correct length "+ \
+                                      str(self.species)
+                            raise Exception(msg)
+                        else:
+                            del[selfval[-1]]
                 else:
                     while len(selfval)<self.species:
                         selfval.append(defaults)
@@ -43,6 +47,7 @@ class Element(object):
                     selfval[i] = [selfval[i], selfval[i], selfval[i]]
                 else:
                     assert(len(selfval[i])==3)
+                selfval[i] = map(float, selfval[i])
             #print(selfval)
             setattr(self,item,selfval)
 
@@ -60,9 +65,10 @@ class Element(object):
     def __str__(self):
         out='\n'
         for i in range(species[self.name]):
-            out += "    %s: N=%5.3lf U=%5.3lf Ue=%5.3lf T=%5.3lf Te=%5.3lf\n" % \
-                (variousutils.ion_state(i,self.name),getattr(self,'column')[i][1],
-                getattr(self,'ionization')[i][1],getattr(self,'ionization_e')[i][1], 
+            out += "%s: N=[%5.3lf %5.3lf %5.3lf] U=%5.3lf Ue=%5.3lf T=%5.3lf Te=%5.3lf\n" % \
+                (variousutils.ion_state(i,self.name),getattr(self,'column')[i][0],
+                getattr(self,'column')[i][1], getattr(self,'column')[i][2],
+                getattr(self,'ionisation')[i][1],getattr(self,'ionisation_e')[i][1], 
                 getattr(self,'temp')[i][1],getattr(self,'temp_e')[i][1])
         out+='\n'
         return out
@@ -93,14 +99,16 @@ class Element(object):
                 return conda and condb
 
             if not overlap(obsval[i],selfval[i]):
-                print("self.%s[%i] != other.%s[%i]"%(item,i,item,i))
-                print("other.%s[%i]=[%lf, %lf, %lf]"%(item,i,obsmin,obsbest,obsmax))
-                print("self.%s[%i]=[%lf, %lf, %lf]"%(item,i,selfmin,selfbest,selfmax))
+                #print("self.%s[%i] != other.%s[%i]"%(item,i,item,i))
+                #print("other.%s[%i]=[%lf, %lf, %lf]"%(item,i,obsmin,obsbest,obsmax))
+                #print("self.%s[%i]=[%lf, %lf, %lf]"%(item,i,selfmin,selfbest,selfmax))
                 return False
+            #if item=='column' and self.name in ['H','C','Si'] and i in [0,2]:
+            #    print("%s: self.%s[%i] == other.%s[%i]"%(variousutils.ion_state(i,self.name),item,i,item,i))
+            #    print("other.%s[%i]=[%lf, %lf, %lf]"%(item,i,obsmin,obsbest,obsmax))
+            #    print("self.%s[%i]=[%lf, %lf, %lf]"%(item,i,selfmin,selfbest,selfmax))
         return True
-        
-                    
-                
+                   
 class ObsData(Element):
     def __init__(self,name,state,**kwargs):
         """
@@ -120,17 +128,14 @@ class ObsData(Element):
         join another obsData instance with the current one
         """
         name = self.name+variousutils.int_to_roman(self.state)
-        absname=absorber.name#+variousutils.int_to_roman(absorber.state)
-        if self.state == absorber.state:
-            msg='cannot join absorbers:  same state '+ \
-                name + '=='+ absname +'\n'
-            raise Exception(msg)
+        absname=absorber.name
         for item in input_dict.keys():
             old = getattr(self,item)
             new = getattr(absorber,item)
-            if old[absorber.state] != defaults:
+            if old[absorber.state] == defaults or new[absorber.state] == defaults:
+                old[absorber.state] = new[absorber.state]
+            else:
                 raise Exception('cannot join two absorbers: %s %s\n' % (str(self), str(absorber)))
-            old[absorber.state] = new[absorber.state]
             setattr(self,item,old)
 
 class Model(object):
@@ -146,19 +151,21 @@ class Model(object):
         """
 
         data = {}
-        for key,val in input_dict.iteritems():
+        for key, val in input_dict.iteritems():
             data[key] = self._get_vals(fstream,val)
 
-        self.elem = []
-        for key, val in element_names.iteritems():
-            item['name']=val
+        self.elem = {}
+        for name in element_names.values():
+            attrs={}
             for attr in data.keys():
-                item[attr] = data[attr][key] 
-                elem = Element(**item)
-            self.elem[elem.name] = elem
+                attrs[attr] = data[attr][name] 
+            self.elem[name] = Element(name,**attrs)
 
     def __str__(self):
-        return "a string of the model.  write more later"
+        s = ''
+        for item in self.elem.keys():
+            s+=str(elem)
+        return s
 
 
     def _get_vals(self, fstream, key):
@@ -188,7 +195,7 @@ class Model(object):
 
         for row in lst:  #repeat for other elements what we did for H
             try:
-                map(float, row[1:])
+                row[1:]=map(float, row[1:])
             except:
                 raise Exception(row)
             output[element_names[row[0]]] = row[1:]
@@ -219,6 +226,8 @@ def retrieve_section(datastream, section_key):
             while "Zinc" not in curr.data:
                 ret_data.append(curr.data)
                 curr=curr.next
+            ret_data.append(curr.data)  #to get Zinc
+            curr=curr.next
         else:
             curr=curr.next
     if ret_data[0][:8]=='Hydrogen':
@@ -303,10 +312,11 @@ def write_out(data, element, return_data=False):
         if not return_data:
             f = open(element+"_"+key+".dat",'w')
             for item in data:
-                f.write(item.get_element(element, key)+"\n")
+                f.write(str(item.elem[element]))
             f.close()
         else: 
-            ret_dict[key] = [getattr(item,key)[element] for item in data ]
+            elems = [ item.elem[element] for item in data ] 
+            ret_dict[key] = [ getattr(item,key) for item in elems ]
     return ret_dict
     
 def search(observed_vals, model_data):
@@ -333,6 +343,12 @@ def search(observed_vals, model_data):
     """
 
     for model in model_data:
+        print('----------------')
+        print variousutils.ion_state(0,model.elem['H'].name)+": "+str(model.elem['H'].column[0][1])
+        for key in observed_vals.keys():
+            if observed_vals[key]==model.elem[key]:
+                print variousutils.ion_state(0,model.elem[key].name)+": "+str(model.elem[key].column[0][1])
+                print variousutils.ion_state(2,model.elem[key].name)+": "+str(model.elem[key].column[2][1])
         result = [ observed_vals[key]==model.elem[key] for key in observed_vals.keys() ] 
         if len(set(result))==1 and result[0]==True:  #if all elements in result are True:
             return model
@@ -364,12 +380,16 @@ def get_observed(fstream=open("observed/observed_data.dat","r")):
     out={}
     for item in getNonBlank(fstream):
         name, state, qty, low, best, hi = tuple(item.split())
+        low, best, hi = tuple(map(float, [low, best, hi]))
+        state = int(state)
         if qty in input_dict.keys():
             lst = input_dict.keys()
-            dat = {'name':name,lst[lst.index(qty)]:[low,best,hi]}
-            if name in out.keys():
+            dat = {lst[lst.index(qty)]:[low,best,hi]}
+            try:    
+                print(name,state)
                 out[name].join(ObsData(name, state, **dat))
-            else:
+            except KeyError:
+                print(name,state)
                 out[name] = ObsData(name, state, **dat)
         else:
             raise Exception(qty+" not in "+str(input_dict.keys()))
@@ -385,10 +405,8 @@ def main():
     #stored as list of Model instances
     all_data = [ Model(item) for item in all_outputs ]
     
-    hdat = write_out(all_data, 'Hydrogen', return_data=True)
+    hdat = write_out(all_data, 'H', return_data=True)
     hcol = np.array( [ item[0] for item in hdat['column'] ], dtype=np.float)  #neutral H column
-
-
 
     obs_vals = get_observed()
     model = search(obs_vals, all_data)

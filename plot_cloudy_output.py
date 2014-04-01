@@ -21,7 +21,7 @@ color_map={
     6:'mo'
 }
 
-#this is a dirty hack to just get something done.  go max to six
+#max number of species to care about for a few diff ions
 ionmap = {
 'H':3,
 'C':4,
@@ -103,49 +103,6 @@ def plot_NU(element,U,N, hcol):
 
 
 
-# solar O abundance = 8.73 +/- 0.07
-
-# where the abundance is defined A(O) = log N(O)/N(H) + 12
-
-
-#observed abundances
-HI = 17.409, 17.413, 17.415
-
-CI   = 10,12.6, 12.6
-CII  = 10, 12.0, 12.0
-CIII = 12.6, 12.62, 12.64
-CIV  = 10,11.3,11.3
-
-SiII  = 10,11.1,11.1
-SiIII = 11.52, 11.62, 11.72
-SiIV  = 10,11.1,11.1
-OI    = 10,12.5,12.5
-OIV   = 10,12.3,12.3
-
-Cmin = np.log10(sum([ 10.**item[0] for item in [CI,CII,CIII,CIV]]))
-C = np.log10(sum([ 10.**item[1] for item in [CI,CII,CIII,CIV]]))
-Cmax = np.log10(sum([ 10.**item[2] for item in [CI,CII,CIII,CIV]]))
-C = Cmin, C, Cmax
-
-def calc_Zlim(X, Y, NX, NY):
-
-    from barak.abundances import Asolar, calc_abund, cond_temp
-    """
-    X = atom X
-    Y = atom Y
-    NX = lower lim, best, upper lim
-    NY = lower lim, best, upper lim
-    """
-    Zmin = calc_abund(X, Y, NX[0], NY[2])
-    Z    = calc_abund(X, Y, NX[1], NY[1])
-    Zmax = calc_abund(X, Y, NX[2], NY[0])
-    return np.array([Zmin, Z, Zmax])
-
-print('OI   %5.2f %5.2f %5.2f'  % tuple(calc_Zlim('O', 'H', OI, HI)      ) )
-print('OIV   %5.2f %5.2f %5.2f' % tuple(calc_Zlim('O', 'H', OIV, HI)      ))
-print('SiIII %5.2f %5.2f %5.2f' % tuple(calc_Zlim('Si','H', SiIII, HI)    )) 
-print('CIII %5.2f %5.2f %5.2f'  % tuple(calc_Zlim('C', 'H', CIII, HI)    ) )
-print('C %5.2f %5.2f %5.2f'  % tuple(calc_Zlim('C', 'H', C, HI)    ) )
 
 
 

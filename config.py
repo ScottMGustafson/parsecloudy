@@ -49,27 +49,24 @@ ions = {  #how many states allowed for each
     'Mg':13,
     'Al':14,
     'Si':15,
-    'P':15,
-    'S':16,
-    'Cl':16,
-    'Ar':17,
-    'K':17,
-    'Ca':18,
-    'Sc':18,
-    'Ti':18,
-    'V':19,
-    'Cr':19,
-    'Mn':19,
-    'Fe':19,
-    'Co':20,
-    'Ni':21,
-    'Cu':21,
-    'Zn':21
+    'P':16,
+    'S':17,
+    'Cl':18,
+    'Ar':19,
+    'K':20,
+    'Ca':21,
+    'Sc':22,
+    'Ti':23,
+    'V':24,
+    'Cr':25,
+    'Mn':26,
+    'Fe':27,
+    'Co':28,
+    'Ni':29,
+    'Cu':30,
+    'Zn':31
 }
 
-#  this separates out results separated by diff ionization states
-notes="NOTE"
-trimflag='-30.000'
 
 def get_config_data(config_file='config_data.cfg'):
     config = ConfigParser()
