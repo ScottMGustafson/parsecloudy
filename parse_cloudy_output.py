@@ -124,15 +124,16 @@ def main():
     
     open(os.path.join(paths['home_path'],'modelout.txt'),'w').write(str(model))
 
-    """
+    #now plot it all
     hdat = write_out(all_data, 'H', return_data=True)
     hcol = np.array( [ item[0] for item in hdat['column'] ], dtype=np.float)
     for element in ['Silicon', 'Carbon', 'Oxygen']:
+    #for element in ['Si', 'C', 'O']:
         data = write_out(all_data, element,return_data=True)  
 
         plot.plot_NT(elem_names[element], data['temp'], data['column'], hcol)
         plot.plot_NU(elem_names[element], data['ionization_e'], data['column'], hcol)
-    """
+
 
 
 if __name__ == '__main__':

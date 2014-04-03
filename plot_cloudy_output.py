@@ -73,7 +73,7 @@ def plot_NT(element,T,N, hcol):
     plt.ylabel(r"$log(N_{HI}/N)$")
     plt.xlabel(r"log(T)")
 
-    plt.savefig(element+"NT.png")
+    plt.savefig('plots/'+element+"NT.png")
     return
 
 def plot_NU(element,U,N, hcol):
@@ -98,7 +98,7 @@ def plot_NU(element,U,N, hcol):
     plt.ylim([-2,12])
     plt.ylabel(r"$log(N_{HI}/N)$")
     plt.xlabel(r"U")
-    plt.savefig(element+"NU.png")
+    plt.savefig('plots/'+element+"NU.png")
     return
 
 
