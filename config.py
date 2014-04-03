@@ -1,5 +1,5 @@
 #import configparser
-from ConfigParser import ConfigParser
+from configparser import ConfigParser
 
 element_names = {
  'Hydrogen':'H',
@@ -72,3 +72,4 @@ def get_config_data(config_file='config_data.cfg'):
     config = ConfigParser()
     config.read(config_file)
     return config
+

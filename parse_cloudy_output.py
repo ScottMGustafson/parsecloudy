@@ -24,7 +24,7 @@ class Element(object):
         self.name=name  #symbol of element (w/o ionisation state)
         self.species = species[self.name]
         #print("%s:%d"%(self.name,species[self.name]))
-        for item in input_dict.keys():
+        for item in list(input_dict.keys()):
             selfval = kwargs.get(item,[defaults for i in range(self.species)])
             #correct number of args?
             try:  
@@ -47,14 +47,14 @@ class Element(object):
                     selfval[i] = [selfval[i], selfval[i], selfval[i]]
                 else:
                     assert(len(selfval[i])==3)
-                selfval[i] = map(float, selfval[i])
+                selfval[i] = list(map(float, selfval[i]))
             #print(selfval)
             setattr(self,item,selfval)
 
     def __eq__(self,observed):
         if observed.name!=self.name:
             return False
-        for item in input_dict.keys():
+        for item in list(input_dict.keys()):
             if not self._attr_eq(observed,item):
                 return False
         return True
@@ -118,7 +118,7 @@ class ObsData(Element):
         self.name = name
         self.state = int(state)
         superkwargs={}
-        for key, val in kwargs.iteritems():
+        for key, val in list(kwargs.items()):
             superkwargs[key] = [defaults for i in range(species[self.name])]
             superkwargs[key][int(state)] = val
         super(ObsData,self).__init__(name,**superkwargs)
@@ -127,9 +127,9 @@ class ObsData(Element):
         """
         join another obsData instance with the current one
         """
-        name = self.name+variousutils.int_to_roman(self.state)
+        name = variousutils.ion_state(self.state,self.name)
         absname=absorber.name
-        for item in input_dict.keys():
+        for item in list(input_dict.keys()):
             old = getattr(self,item)
             new = getattr(absorber,item)
             if old[absorber.state] == defaults or new[absorber.state] == defaults:
@@ -151,19 +151,19 @@ class Model(object):
         """
 
         data = {}
-        for key, val in input_dict.iteritems():
+        for key, val in list(input_dict.items()):
             data[key] = self._get_vals(fstream,val)
 
         self.elem = {}
-        for name in element_names.values():
+        for name in list(element_names.values()):
             attrs={}
-            for attr in data.keys():
+            for attr in list(data.keys()):
                 attrs[attr] = data[attr][name] 
             self.elem[name] = Element(name,**attrs)
 
     def __str__(self):
         s = ''
-        for item in self.elem.keys():
+        for item in list(self.elem.keys()):
             s+=str(elem)
         return s
 
@@ -186,7 +186,7 @@ class Model(object):
         val  = list of ions' attribute: val[0]=neutral, val[n]=nth ionization
         """
 
-        if type(fstream) == file:
+        if type(fstream) == __file__:
             fstream = [ item for item in getNonBlank(open(fstream,'r')) ]
 
         lst = retrieve_section(fstream,key)
@@ -195,7 +195,7 @@ class Model(object):
 
         for row in lst:  #repeat for other elements what we did for H
             try:
-                row[1:]=map(float, row[1:])
+                row[1:]=list(map(float, row[1:]))
             except:
                 raise Exception(row)
             output[element_names[row[0]]] = row[1:]
@@ -225,16 +225,16 @@ def retrieve_section(datastream, section_key):
         if section_key in curr.data:
             while "Zinc" not in curr.data:
                 ret_data.append(curr.data)
-                curr=curr.next
+                curr=curr.gonext()
             ret_data.append(curr.data)  #to get Zinc
-            curr=curr.next
+            curr=curr.gonext()
         else:
-            curr=curr.next
+            curr=curr.gonext()
     if ret_data[0][:8]=='Hydrogen':
         ret_data = mult_lines(ret_data)
     return ret_data
 
-def mult_lines(lst,keys=element_names.keys()):
+def mult_lines(lst,keys=list(element_names.keys())):
     """
     sometimes the output crosses over multiple lines.  takes the extra lines 
     and appends them to the primary line.
@@ -308,7 +308,7 @@ def write_out(data, element, return_data=False):
     """
 
     ret_dict = {}
-    for key in input_dict.keys():
+    for key in list(input_dict.keys()):
         if not return_data:
             f = open(element+"_"+key+".dat",'w')
             for item in data:
@@ -344,12 +344,12 @@ def search(observed_vals, model_data):
 
     for model in model_data:
         print('----------------')
-        print variousutils.ion_state(0,model.elem['H'].name)+": "+str(model.elem['H'].column[0][1])
-        for key in observed_vals.keys():
+        print(variousutils.ion_state(0,model.elem['H'].name)+": "+str(model.elem['H'].column[0][1]))
+        for key in list(observed_vals.keys()):
             if observed_vals[key]==model.elem[key]:
-                print variousutils.ion_state(0,model.elem[key].name)+": "+str(model.elem[key].column[0][1])
-                print variousutils.ion_state(2,model.elem[key].name)+": "+str(model.elem[key].column[2][1])
-        result = [ observed_vals[key]==model.elem[key] for key in observed_vals.keys() ] 
+                print(variousutils.ion_state(0,model.elem[key].name)+": "+str(model.elem[key].column[0][1]))
+                print(variousutils.ion_state(2,model.elem[key].name)+": "+str(model.elem[key].column[2][1]))
+        result = [ observed_vals[key]==model.elem[key] for key in list(observed_vals.keys()) ] 
         if len(set(result))==1 and result[0]==True:  #if all elements in result are True:
             return model
     return None
@@ -382,17 +382,17 @@ def get_observed(fstream=open("observed/observed_data.dat","r")):
         name, state, qty, low, best, hi = tuple(item.split())
         low, best, hi = tuple(map(float, [low, best, hi]))
         state = int(state)
-        if qty in input_dict.keys():
-            lst = input_dict.keys()
+        if qty in list(input_dict.keys()):
+            lst = list(input_dict.keys())
             dat = {lst[lst.index(qty)]:[low,best,hi]}
             try:    
-                print(name,state)
+                print((name,state))
                 out[name].join(ObsData(name, state, **dat))
             except KeyError:
-                print(name,state)
+                print((name,state))
                 out[name] = ObsData(name, state, **dat)
         else:
-            raise Exception(qty+" not in "+str(input_dict.keys()))
+            raise Exception(qty+" not in "+str(list(input_dict.keys())))
     return out
 
 def main():
@@ -410,7 +410,7 @@ def main():
 
     obs_vals = get_observed()
     model = search(obs_vals, all_data)
-    print(str(model))
+    print((str(model)))
 
     """
     for element in ['Silicon', 'Carbon', 'Oxygen']:

@@ -1,7 +1,9 @@
 class _Link(object):
     def __init__(self,val):
         self.data=val
-        self.next=None
+        self._next=None
+    def gonext(self):
+        return self._next
 
 class LinkedList(object):
     def __init__(self,in_list=None):
@@ -21,7 +23,7 @@ class LinkedList(object):
         curr = self.head
         while curr is not None:
             temp = curr
-            curr = curr.next
+            curr = curr._next
             if yieldNode: 
                 yield temp
             else:
@@ -32,7 +34,7 @@ class LinkedList(object):
         if self.head == None:
             self.head=newlink
         if self.tail != None:
-            self.tail.next = newlink
+            self.tail._next = newlink
         self.tail=newlink
 
         
@@ -42,11 +44,11 @@ class LinkedList(object):
         i=0
         while curr!=None and i<index:
             prev=curr
-            curr=curr.next
+            curr=curr._next
             i+=1
         if prev==None:
-            self.head=curr.next
+            self.head=curr._next
             return curr.data
         else:
-            prev.next=curr.next
+            prev._next=curr._next
             return curr.data

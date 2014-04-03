@@ -36,7 +36,7 @@ class TestObsData(unittest.TestCase):
         obs = ObsData('H',0,column=[16.,17.,17.5])
         other=ObsData('H',1,column=[15.,16.,16.5])
         obs.join(other)
-        for item in input_dict.keys():
+        for item in list(input_dict.keys()):
             self.assertEqual(getattr(obs,item)[1],getattr(other,item)[1])
 
 class TestModel(unittest.TestCase):
