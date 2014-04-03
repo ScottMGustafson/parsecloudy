@@ -1,0 +1,8 @@
+*~
+*.pyc
+img/
+input/*
+output/*
+observed/*
+zlim.py
+*.bak
