@@ -1,5 +1,6 @@
 import unittest
 from parse_cloudy_output import *
+from core import *
 
 input_dict = {
     "column": [17.2,15.4,13.4],
