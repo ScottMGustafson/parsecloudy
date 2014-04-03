@@ -173,9 +173,6 @@ class Model(object):
         val  = list of ions' attribute: val[0]=neutral, val[n]=nth ionization
         """
 
-        if type(fstream) == __file__:
-            fstream = [ item for item in getNonBlank(open(fstream,'r')) ]
-
         lst = retrieve_section(fstream,key)
         h_dat = lst.pop(0)[1:4]  #need to 4 since text is included in this line
         output = {elem_names['Hydrogen']:h_dat}
@@ -205,9 +202,8 @@ def retrieve_section(datastream, section_key):
     dict of parsed data
     """
     #strip off blank lines and comments
-    llst = LinkedList([ item for item in getNonBlank(datastream) ])
+    llst = LinkedList([ item for item in getNonBlank(datastream)])
     ret_data = []
-
     curr = llst.head
     while curr is not None:
         if section_key in curr.data:
@@ -293,3 +289,10 @@ class LinkedList(object):
         else:
             prev._next=curr._next
             return curr.data
+    def __str__(self):
+        curr=self.head
+        s=''
+        while curr:
+            s+=str(curr.data)+'\n'
+            curr=curr.gonext()
+        return s

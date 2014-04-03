@@ -29,8 +29,13 @@ def ion_state(i,element):
     else:
         return element+int_to_roman(i+1)
 
-def getNonBlank(filestream):
+def getNonBlank(file):
     """return lines which are neither empty, nor contain any # symbols"""
+    try:
+        assert(type(file)==str)
+    except:
+        raise Exception(type(file))
+    filestream = open(file,'r').readlines()
     for line in filestream:
         lines = line.strip()
         if len(lines)>0 and lines[0] not in '#*':
@@ -53,10 +58,4 @@ def get_ind(fstream, string):
         if string in fstream[i]:
             return i
     raise Exception("\""+string+"\" not found")
-
-
-
-
-
-
 

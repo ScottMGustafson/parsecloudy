@@ -62,20 +62,21 @@ def search(observed_vals, model_data):
     """
 
     for model in model_data:
-        
+        s=[('-------%s---------')%(model.fname)]
         for key in list(observed_vals.keys()):
             if observed_vals[key]==model.elem[key]:
-                print('----------------')
-                print(ion_state(0,model.elem['H'].name)+": "+str(model.elem['H'].column[0][1]))
-                print(ion_state(0,model.elem[key].name)+": "+str(model.elem[key].column[0][1]))
-                print(ion_state(2,model.elem[key].name)+": "+str(model.elem[key].column[2][1]))
+                s.append(ion_state(0,model.elem[key].name)+": "+str(model.elem[key].column[0][1]))
+                s.append(ion_state(2,model.elem[key].name)+": "+str(model.elem[key].column[2][1]))
+        if len(s)>3:
+            for i in range(len(s)):
+                print(s[i])
         result = [ observed_vals[key]==model.elem[key] for key in list(observed_vals.keys()) ] 
         if len(set(result))==1 and result[0]==True:  #if all elements in result are True:
             return model
     return None
             
 
-def get_observed(fstream=open("observed/observed_data.dat","r")):
+def get_observed(fstream="observed/observed_data.dat"):
     """
     format of observed data should be:
     C 2 column lower best upper
@@ -112,23 +113,20 @@ def get_observed(fstream=open("observed/observed_data.dat","r")):
     return out
 
 def main():
-    all_outputs = []
-    outpath = os.path.join(os.getcwd(),'output')
-    for item in os.listdir(outpath):
-        if item.endswith(".out"):
-            all_outputs.append( [f for f in getNonBlank(open(os.path.join(outpath,item)))] )
+    pth=paths['output_path']
+    outputs = [os.path.join(pth,f) for f in os.listdir(pth) if f.endswith('.out')]
 
     #stored as list of Model instances
-    all_data = [ Model(item) for item in all_outputs ]
-    
-    hdat = write_out(all_data, 'H', return_data=True)
-    hcol = np.array( [ item[0] for item in hdat['column'] ], dtype=np.float)  #neutral H column
+    all_data = [ Model(item) for item in outputs ]
 
     obs_vals = get_observed()
     model = search(obs_vals, all_data)
-    print((str(model)))
+    
+    open(os.path.join(paths['home_path'],'modelout.txt'),'w').write(str(model))
 
     """
+    hdat = write_out(all_data, 'H', return_data=True)
+    hcol = np.array( [ item[0] for item in hdat['column'] ], dtype=np.float)
     for element in ['Silicon', 'Carbon', 'Oxygen']:
         data = write_out(all_data, element,return_data=True)  
 
