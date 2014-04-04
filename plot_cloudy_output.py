@@ -49,7 +49,7 @@ def trim(x,y,hcol):
     end = min(y.shape[0],x.shape[0])
     return x[0:end], y[0:end], hcol[0:end]
 
-def plot_NT(element,T,N, hcol):
+def plot_NT(element,T,N,hcol,bounds=None):
     """
     plot N versus T
     parameters:
@@ -69,14 +69,22 @@ def plot_NT(element,T,N, hcol):
         x,y,hcol = trim(x,y,hcol)
         y = hcol - y
         ax.plot(x, y, color_map[i],label=ion_state(i,element))
-
     plt.ylabel(r"$log(N_{HI}/N)$")
     plt.xlabel(r"log(T)")
+    xlims=[3.6,5.0]
+    ylims=[0.,20.]
+    plt.xlim(xlims)
+    plt.ylim(ylims)
+
+    if not bounds is None: 
+        l = 17.409 - max(bounds)
+        u = 17.415 - min(bounds)
+        plt.fill([xlims[0],xlims[1],xlims[1],xlims[0]], [l,l,u,u], '0.50', alpha=0.2, edgecolor='b')
 
     plt.savefig('plots/'+element+"NT.png")
     return
 
-def plot_NU(element,U,N, hcol):
+def plot_NU(element,U,N, hcol,bounds=None):
     """
     plot N versus T
     parameters:
@@ -88,16 +96,24 @@ def plot_NU(element,U,N, hcol):
     fig,ax = plt.subplots()
     
     for i in range(ionmap[element]):
-        
         x = np.array([item[i] for item in U],dtype=np.float)
         y = np.array([item[i] for item in N],dtype=np.float)
         x,y,hcol = trim(x,y,hcol)
         y = hcol - y
         ax.plot(x, y, color_map[i],label=ion_state(i,element))
-    plt.xlim([-5,0])
-    plt.ylim([-2,12])
+    xlims=[-10.2,0.2]
+    ylims=[0.,20.]
+    plt.xlim(xlims)
+    plt.ylim(ylims)
     plt.ylabel(r"$log(N_{HI}/N)$")
     plt.xlabel(r"U")
+    if not bounds is None: 
+        l = 17.409 - max(bounds)
+        u = 17.415 - min(bounds)
+
+        plt.fill([xlims[0],xlims[1],xlims[1],xlims[0]], [l,l,u,u], '0.50', alpha=0.2, edgecolor='b')
+
+        #plt.fill_between(np.arange(xlims[0],xlims[1]),lower,upper,color='0.50')
     plt.savefig('plots/'+element+"NU.png")
     return
 

@@ -34,7 +34,10 @@ def write_out(data, element, return_data=False):
                 f.write(str(item.elem[element]))
             f.close()
         else: 
-            elems = [ item.elem[element] for item in data ] 
+            try:
+                elems = [ item.elem[element] for item in data] 
+            except:
+                raise Exception(str([ item.elem.keys() for item in data ] ))
             ret_dict[key] = [ getattr(item,key) for item in elems ]
     return ret_dict
     
@@ -99,6 +102,10 @@ def get_observed(fstream="observed/observed_data.dat"):
     out={}
     for item in getNonBlank(fstream):
         name, state, qty, low, best, hi = tuple(item.split())
+        try:
+            name = elem_names[name]
+        except:
+            pass
         low, best, hi = tuple(map(float, [low, best, hi]))
         state = int(state)
         if qty in list(input_dict.keys()):
@@ -117,6 +124,12 @@ def main():
     outputs = [os.path.join(pth,f) for f in os.listdir(pth) if f.endswith('.out')]
 
     #stored as list of Model instances
+
+    #all_data = []
+    #for item in outputs:
+    #    model = Model(item)
+    #    if 17.412<model.elem['H'].column[0][1]<17.414:
+    #        all_data.append(model)
     all_data = [ Model(item) for item in outputs ]
 
     obs_vals = get_observed()
@@ -126,13 +139,17 @@ def main():
 
     #now plot it all
     hdat = write_out(all_data, 'H', return_data=True)
-    hcol = np.array( [ item[0] for item in hdat['column'] ], dtype=np.float)
-    for element in ['Silicon', 'Carbon', 'Oxygen']:
-    #for element in ['Si', 'C', 'O']:
+    hcol = np.array( [ item[0] for item in hdat['column'] if 17.412<item[0][1]<17.414], dtype=np.float)
+    #for element in ['Silicon', 'Carbon', 'Oxygen']:
+    for element in ['Si', 'C']:
+        try:
+            bounds = [obs_vals[element].column[2][0], obs_vals[element].column[2][2]]
+        except:
+            raise Exception(str(obs_vals.keys()))
         data = write_out(all_data, element,return_data=True)  
 
-        plot.plot_NT(elem_names[element], data['temp'], data['column'], hcol)
-        plot.plot_NU(elem_names[element], data['ionization_e'], data['column'], hcol)
+        plot.plot_NT(element, data['temp'], data['column'], hcol, bounds)
+        plot.plot_NU(element, data['ionization'], data['column'], hcol, bounds)
 
 
 
