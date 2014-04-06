@@ -172,16 +172,16 @@ class Model(object):
         key  = element name
         val  = list of ions' attribute: val[0]=neutral, val[n]=nth ionization
         """
+        try:
+            lst = retrieve_section(fstream,key)
+        except:
+            return None   #this will occur with an erroneous file
 
-        lst = retrieve_section(fstream,key)
         h_dat = lst.pop(0)[1:4]  #need to 4 since text is included in this line
         output = {elem_names['Hydrogen']:h_dat}
 
         for row in lst:  #repeat for other elements what we did for H
-            try:
-                row[1:]=list(map(float, row[1:]))
-            except:
-                raise Exception(row)
+            row[1:]=list(map(float, row[1:]))
             output[elem_names[row[0]]] = row[1:]
         return output 
 
@@ -201,22 +201,48 @@ def retrieve_section(datastream, section_key):
     =======
     dict of parsed data
     """
-    #strip off blank lines and comments
+
+    """
+    #had a more convoluted, but pretty way of doing this, but array manipulation is much easier
+    i=0
+    dat=[]
+    while i<len(temp):
+        if section_key in temp[i] and 'Hydrogen' in temp[i]:
+            dat.append(list(map(float,(temp[i].split())[1:4])))
+            i+=1
+            while i<len(temp):
+                if temp[i].split()[0] in elem_names.keys():
+                    dat.append(list(map(float, temp[i].split()[1:] )))
+                    if 'Zinc' in temp[i]:
+                        i+=1
+                        continue 
+                    else:
+                        i+=1
+        i+=1  
+
+    """
+
     llst = LinkedList([ item for item in getNonBlank(datastream)])
-    ret_data = []
     curr = llst.head
-    while curr is not None:
+    dat=[]
+    while not curr is None:
         if section_key in curr.data:
             while "Zinc" not in curr.data:
-                ret_data.append(curr.data)
+                dat.append(curr.data)
                 curr=curr.gonext()
-            ret_data.append(curr.data)  #to get Zinc
+            dat.append(curr.data)  #to get Zinc
             curr=curr.gonext()
         else:
             curr=curr.gonext()
-    if ret_data[0][:8]=='Hydrogen':
-        ret_data = mult_lines(ret_data)
-    return ret_data
+    try:
+        assert(len(dat)>0)
+    except:
+        raise Exception(datastream+'\n'+section_key)
+    if 'Hydrogen' in dat[0]:
+        dat = mult_lines(dat)
+
+    return dat
+
 
 def mult_lines(lst,keys=list(elem_names.keys())):
     """
@@ -235,7 +261,7 @@ def mult_lines(lst,keys=list(elem_names.keys())):
     out_list = []
 
     for item in lst:
-        item = (item.replace('-',' -')).strip()
+        item=item.replace('-',' -').strip()
         if item.split()[0] in keys:
             out_list.append(item.split())
         else:
@@ -251,6 +277,8 @@ class _Link(object):
         self._next=None
     def gonext(self):
         return self._next
+    def __str__(self):
+        return str(self.data)
 
 class LinkedList(object):
     def __init__(self,in_list=None):

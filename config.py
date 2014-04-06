@@ -11,7 +11,7 @@ configDict = get_config_data()
 
 default    = float(configDict['Config']['default'])
 ions       = {key:int(val) for key, val in dict(configDict['Species']).items()}
-elem_names = dict(configDict['Element Names'])
-input_dict = dict(configDict['Output Data'])
-paths      = dict(configDict['paths'])
+elem_names = dict(configDict.items('Element Names'))
+input_dict = dict(configDict.items('Output Data'))
+paths      = dict(configDict.items('paths'))
 

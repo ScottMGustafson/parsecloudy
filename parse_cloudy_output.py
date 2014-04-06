@@ -4,6 +4,7 @@ from config import elem_names, paths, input_dict
 import numpy as np
 from core import *
 from variousutils import getNonBlank, get_ind, ion_state
+import warnings
 
 def write_out(data, element, return_data=False):
     """
@@ -26,19 +27,13 @@ def write_out(data, element, return_data=False):
         list of lists in the same format as above
     """
 
+    try:
+        elems = [ item.elem[element] for item in data] 
+    except:
+        raise Exception(str([ item.elem.keys() for item in data ] ))
     ret_dict = {}
     for key in list(input_dict.keys()):
-        if not return_data:
-            f = open(element+"_"+key+".dat",'w')
-            for item in data:
-                f.write(str(item.elem[element]))
-            f.close()
-        else: 
-            try:
-                elems = [ item.elem[element] for item in data] 
-            except:
-                raise Exception(str([ item.elem.keys() for item in data ] ))
-            ret_dict[key] = [ getattr(item,key) for item in elems ]
+        ret_dict[key] = [ getattr(item,key) for item in elems ]
     return ret_dict
     
 def search(observed_vals, model_data):
@@ -122,7 +117,6 @@ def get_observed(fstream="observed/observed_data.dat"):
 def main():
     pth=paths['output_path']
     outputs = [os.path.join(pth,f) for f in os.listdir(pth) if f.endswith('.out')]
-
     #stored as list of Model instances
 
     #all_data = []
@@ -130,16 +124,23 @@ def main():
     #    model = Model(item)
     #    if 17.412<model.elem['H'].column[0][1]<17.414:
     #        all_data.append(model)
-    all_data = [ Model(item) for item in outputs ]
+
+    all_data = []
+    for item in outputs:
+        try:
+            all_data.append(Model(item))
+        except:
+            warnings.warn('model '+item+' has critical issues.  skipping')
+        
 
     obs_vals = get_observed()
-    model = search(obs_vals, all_data)
+    #model = search(obs_vals, all_data)
     
-    open(os.path.join(paths['home_path'],'modelout.txt'),'w').write(str(model))
+    #open(os.path.join(paths['home_path'],'modelout.txt'),'w').write(str(model))
 
     #now plot it all
     hdat = write_out(all_data, 'H', return_data=True)
-    hcol = np.array( [ item[0] for item in hdat['column'] if 17.412<item[0][1]<17.414], dtype=np.float)
+    hcol = np.array( [ item[0] for item in hdat['column']])
     #for element in ['Silicon', 'Carbon', 'Oxygen']:
     for element in ['Si', 'C']:
         try:

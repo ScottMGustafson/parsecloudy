@@ -31,10 +31,6 @@ def ion_state(i,element):
 
 def getNonBlank(file):
     """return lines which are neither empty, nor contain any # symbols"""
-    try:
-        assert(type(file)==str)
-    except:
-        raise Exception(type(file))
     filestream = open(file,'r').readlines()
     for line in filestream:
         lines = line.strip()
