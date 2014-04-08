@@ -6,13 +6,19 @@ from core import *
 from variousutils import getNonBlank, get_ind, ion_state
 import warnings
 
-def write_out(data, element, return_data=False):
+def write_out(data, element, filter_vals=False, **kwargs):
     """
+    write all model data as dict of lists
+
     input params:
     -------------
-    data_lst: list of Model instances
-    key:  a string of which attribute to parse.
+    data: list of Model instances
     element: a string of which element.
+    filter_vals:  should they be filtered?
+    key:  input for filter_data
+    bounds:  input for filter_data
+    state: input for filter_data
+    
 
     output:
     -------
@@ -25,15 +31,20 @@ def write_out(data, element, return_data=False):
             ```
     if return_data is True:
         list of lists in the same format as above
-    """
 
-    try:
-        elems = [ item.elem[element] for item in data] 
-    except:
-        raise Exception(str([ item.elem.keys() for item in data ] ))
+    """
+    if filter_vals:
+        state = kwargs.get(state,None)
+        bounds= kwargs.get(bounds,None)
+        data = filter_data(data, key, bounds, element, state)
+
+    elems = [ item.elem[element] for item in data ] 
     ret_dict = {}
     for key in list(input_dict.keys()):
         ret_dict[key] = [ getattr(item,key) for item in elems ]
+    ret_dict['Z']=[item.Z for item in data]
+    ret_dict['U']=[item.U for item in data]
+    ret_dict['hden']=[item.hden for item in data]
     return ret_dict
     
 def search(observed_vals, model_data):
@@ -59,6 +70,7 @@ def search(observed_vals, model_data):
     model w/ observed values (within tolerances)
     """
 
+    results = []
     for model in model_data:
         s=[('-------%s---------')%(model.fname)]
         for key in list(observed_vals.keys()):
@@ -70,8 +82,8 @@ def search(observed_vals, model_data):
                 print(s[i])
         result = [ observed_vals[key]==model.elem[key] for key in list(observed_vals.keys()) ] 
         if len(set(result))==1 and result[0]==True:  #if all elements in result are True:
-            return model
-    return None
+            results.append(model.fname)
+    return results
             
 
 def get_observed(fstream="observed/observed_data.dat"):
@@ -114,34 +126,57 @@ def get_observed(fstream="observed/observed_data.dat"):
             raise Exception(qty+" not in "+str(list(input_dict.keys())))
     return out
 
+
+def filter_data(indata, key, bounds, element_key=None, state=None):
+    """
+    filter list of Model instances by key,
+
+    input params:
+    -------------
+    indata : list of model instances
+    element_key: element
+    state: if looking at specific element, ionization state needed
+    key : key of data to look at    
+    bounds: list of constraints.  [min, max]
+
+    output:
+    --------
+    list of model instances
+    
+    """
+    def cond(item):
+        if element_key is None:
+            return bounds[0]<=getattr(item,key)<=bounds[-1]
+        else:
+            return bounds[0]<=item.get_elem(element_key,state,key)<=bounds[-1]
+    
+    return [item for item in indata if cond(item)]
+    
+
+
 def main():
     pth=paths['output_path']
     outputs = [os.path.join(pth,f) for f in os.listdir(pth) if f.endswith('.out')]
     #stored as list of Model instances
-
-    #all_data = []
-    #for item in outputs:
-    #    model = Model(item)
-    #    if 17.412<model.elem['H'].column[0][1]<17.414:
-    #        all_data.append(model)
 
     all_data = []
     for item in outputs:
         try:
             all_data.append(Model(item))
         except:
-            warnings.warn('model '+item+' has critical issues.  skipping')
-        
+            warnings.warn('model '+item+' has critical issues.  skipping')       
 
     obs_vals = get_observed()
-    #model = search(obs_vals, all_data)
-    
-    #open(os.path.join(paths['home_path'],'modelout.txt'),'w').write(str(model))
+    print(search(obs_vals, all_data))
+
+    #filter values out here
+
+    all_data = filter_data(all_data, 'Z', [-5.2, -1.2])
+    all_data = filter_data(all_data, 'U', [-8., -2.])
 
     #now plot it all
     hdat = write_out(all_data, 'H', return_data=True)
-    hcol = np.array( [ item[0] for item in hdat['column']])
-    #for element in ['Silicon', 'Carbon', 'Oxygen']:
+    hcol = np.array( [ item[0] for item in hdat['column'] ] )
     for element in ['Si', 'C']:
         try:
             bounds = [obs_vals[element].column[2][0], obs_vals[element].column[2][2]]
@@ -149,12 +184,13 @@ def main():
             raise Exception(str(obs_vals.keys()))
         data = write_out(all_data, element,return_data=True)  
 
+        #Z = filter_data(outdata, 'Z', [-5.2,-1.2])
+        
         plot.plot_NT(element, data['temp'], data['column'], hcol, bounds)
-        plot.plot_NU(element, data['ionization'], data['column'], hcol, bounds)
-
+        plot.plot_NU(element, data['U'], data['column'], hcol, bounds)
+        plot.plot_NZ(element, data['Z'], data['column'], hcol, bounds)
+        plot.plot_N(element,data['column'],hdat['column'],bounds)  #should only do this out of 
 
 
 if __name__ == '__main__':
     main()
-
- 

@@ -1,6 +1,7 @@
 from config import elem_names, ions, default, input_dict
 from variousutils import getNonBlank, ion_state
 import warnings
+import re
 
 defaults = [default, default, default]  #  best, upper and lower limits default values
 
@@ -8,10 +9,8 @@ class Element(object):
     def __init__(self,name,**kwargs):
         self.name=name  #symbol of element (w/o ionisation state)
         self.ions = ions[self.name]
-        #print("%s:%d"%(self.name,ions[self.name]))
         for item in list(input_dict.keys()):
             selfval = kwargs.get(item,[defaults for i in range(self.ions)])
-            #correct number of args?
             try:  
                 assert(len(selfval)==self.ions)
             except:
@@ -33,7 +32,6 @@ class Element(object):
                 else:
                     assert(len(selfval[i])==3)
                 selfval[i] = list(map(float, selfval[i]))
-            #print(selfval)
             setattr(self,item,selfval)
 
     def __eq__(self,observed):
@@ -78,21 +76,13 @@ class Element(object):
             obsmin,  obsbest,  obsmax  = tuple(obsval[i]) 
             selfmin, selfbest, selfmax = tuple(selfval[i])
 
-
             def overlap(a,b):
                 conda = a[2] >= b[0] if a[2]!=b[0]!=default else True
                 condb = a[0] <= b[2] if a[0]!=b[2]!=default else True
                 return conda and condb
 
             if not overlap(obsval[i],selfval[i]):
-                #print("self.%s[%i] != other.%s[%i]"%(item,i,item,i))
-                #print("other.%s[%i]=[%lf, %lf, %lf]"%(item,i,obsmin,obsbest,obsmax))
-                #print("self.%s[%i]=[%lf, %lf, %lf]"%(item,i,selfmin,selfbest,selfmax))
                 return False
-            #if item=='column' and self.name in ['H','C','Si'] and i in [0,2]:
-            #    print("%s: self.%s[%i] == other.%s[%i]"%(ion_state(i,self.name),item,i,item,i))
-            #    print("other.%s[%i]=[%lf, %lf, %lf]"%(item,i,obsmin,obsbest,obsmax))
-            #    print("self.%s[%i]=[%lf, %lf, %lf]"%(item,i,selfmin,selfbest,selfmax))
         return True
                    
 class ObsData(Element):
@@ -139,8 +129,12 @@ class Model(object):
         data = {}
         self.fname=fstream
         for key, val in list(input_dict.items()):
-            data[key] = self._get_vals(fstream,val)
+            data[key] = self._get_vals(val)
 
+        self.Z = float(self._get('metals'))
+        self.U = float(self._get("***> Log(U):"))
+        self.hden=float(self._get('hden'))
+ 
         self.elem = {}
         for name in list(elem_names.values()):
             attrs={}
@@ -154,8 +148,13 @@ class Model(object):
             s+=str(self.elem[item])
         return s
 
+    def _get(self,string):
+        for item in getNonBlank(self.fname):
+            if string in item:
+                return re.findall(r"[-+]?\d*\.\d+|\d+",item)[0]
+        return None
 
-    def _get_vals(self, fstream, key):
+    def _get_vals(self, key):
         """
         parse value for some element's attribute given by key
 
@@ -173,7 +172,7 @@ class Model(object):
         val  = list of ions' attribute: val[0]=neutral, val[n]=nth ionization
         """
         try:
-            lst = retrieve_section(fstream,key)
+            lst = retrieve_section(self.fname,key)
         except:
             return None   #this will occur with an erroneous file
 
@@ -184,6 +183,35 @@ class Model(object):
             row[1:]=list(map(float, row[1:]))
             output[elem_names[row[0]]] = row[1:]
         return output 
+
+    def get_elem(self,element, state=None, qty=None, error=False):
+        """
+        get output for a specific element.
+    
+        input params:
+        -------------
+        element:  which element to parse
+        state:  ionization state (0=I, 1=II, etc)
+        qty:  which quantity?  (keys from input_dict)
+        bounds: list of bounds: [lower, upper]
+
+        """
+        item=self.elem[element]
+        if not qty:
+            return item
+        else:
+            vals=getattr(item,qty)
+            if state:
+                if not error:
+                    return vals[state][1]
+                else:
+                    return tuple(vals[state])
+            else:
+                if not error:
+                    return [item[1] for item in vals]
+                else:
+                    return [tuple(item) for item in vals]
+            
 
 def retrieve_section(datastream, section_key):
 
@@ -200,26 +228,6 @@ def retrieve_section(datastream, section_key):
     output:
     =======
     dict of parsed data
-    """
-
-    """
-    #had a more convoluted, but pretty way of doing this, but array manipulation is much easier
-    i=0
-    dat=[]
-    while i<len(temp):
-        if section_key in temp[i] and 'Hydrogen' in temp[i]:
-            dat.append(list(map(float,(temp[i].split())[1:4])))
-            i+=1
-            while i<len(temp):
-                if temp[i].split()[0] in elem_names.keys():
-                    dat.append(list(map(float, temp[i].split()[1:] )))
-                    if 'Zinc' in temp[i]:
-                        i+=1
-                        continue 
-                    else:
-                        i+=1
-        i+=1  
-
     """
 
     llst = LinkedList([ item for item in getNonBlank(datastream)])

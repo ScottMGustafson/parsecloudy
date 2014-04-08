@@ -34,7 +34,7 @@ def getNonBlank(file):
     filestream = open(file,'r').readlines()
     for line in filestream:
         lines = line.strip()
-        if len(lines)>0 and lines[0] not in '#*':
+        if len(lines)>0 and lines[0] not in '#':
             yield lines 
 
 def get_ind(fstream, string):

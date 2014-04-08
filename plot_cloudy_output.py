@@ -7,6 +7,13 @@ take in data from parse_cloudy_output data files and plot.
 import matplotlib.pyplot as plt
 import numpy as np
 from variousutils import int_to_roman, ion_state
+from collections import OrderedDict
+
+solar={}
+for item in open('SolarAbundance.txt'):
+    item=item.split()
+    solar[item[0]] = float(item[1])    
+
 
 plt.rc('text', usetex=True)
 plt.rc('font', family='serif')
@@ -86,17 +93,17 @@ def plot_NT(element,T,N,hcol,bounds=None):
 
 def plot_NU(element,U,N, hcol,bounds=None):
     """
-    plot N versus T
+    plot N versus ionization parameter U
     parameters:
     -----------
     element: element name
     N: log N. should be list of lists like: [HI:[...],HII:[...],H2:[...]]
-    T: log T. list of lists like N
+    U: log U. list of lists like N
     """
     fig,ax = plt.subplots()
     
     for i in range(ionmap[element]):
-        x = np.array([item[i] for item in U],dtype=np.float)
+        x = np.array([item for item in U],dtype=np.float)
         y = np.array([item[i] for item in N],dtype=np.float)
         x,y,hcol = trim(x,y,hcol)
         y = hcol - y
@@ -117,8 +124,68 @@ def plot_NU(element,U,N, hcol,bounds=None):
     plt.savefig('plots/'+element+"NU.png")
     return
 
+def plot_NZ(element,Z,N, hcol,bounds=None):
+    """
+    plot N versus T
+    parameters:
+    -----------
+    element: element name
+    N: log N. should be list of lists like: [HI:[...],HII:[...],H2:[...]]
+    T: log T. list of lists like N
+    """
+    fig,ax = plt.subplots()
+    
+    for i in range(ionmap[element]):
+        x = np.array(Z,dtype=np.float)
+        y = np.array([item[i] for item in N],dtype=np.float)
+        x,y,hcol = trim(x,y,hcol)
+        y = hcol - y
+        ax.plot(x, y, color_map[i],label=ion_state(i,element))
+    xlims=[-5.0,0.]
+    ylims=[0.,20.]
+    plt.xlim(xlims)
+    plt.ylim(ylims)
+    plt.ylabel(r"$log(N_{HI}/N)$")
+    plt.xlabel(r"Z")
+    if not bounds is None: 
+        l = 17.409 - max(bounds)
+        u = 17.415 - min(bounds)
+
+        plt.fill([xlims[0],xlims[1],xlims[1],xlims[0]], [l,l,u,u], '0.50', alpha=0.2, edgecolor='b')
+
+        #plt.fill_between(np.arange(xlims[0],xlims[1]),lower,upper,color='0.50')
+    plt.savefig('plots/'+element+"NZ.png")
+    return
 
 
+def plot_N(element,N,hcol,bounds=None):
+    fig,ax = plt.subplots()
 
+    xbounds=[]
+    n=[]
+    for i in range(len(N)):
+        if min(bounds)<=N[i][2][1]<=max(bounds):
+            xbounds.append(i)  
+        num=sum([ 10.**N[i][j][1] for j in range(len(N[i]))])
+        n.append(np.log10(num))
 
+    n=np.array(n)
+    nH = np.array([np.log10(10.**item[0][1] + 10.**item[1][1] + 10.**item[2][1]) for item in hcol])  #get total column for HI, HI and H2
+    x = np.array(n - nH -(solar[element] - solar['H']),dtype=np.float)
+    y = np.array([item[2] for item in N],dtype=np.float)
+    assert(x.shape[0]==y.shape[0])
+    ax.plot(x, y, 'ko')
+    xlims=[-6.0,0.]
+    ylims=[5.0,20.]
+    plt.xlim(xlims)
+    plt.ylim(ylims)
+    plt.ylabel(r"$log(N_{"+element+r" III})$")
+    plt.xlabel(r"$["+element+r"/H]$")
+    if not bounds is None: 
+        ly = max(bounds)
+        uy = min(bounds)
+        lx= min(list(x[xbounds]))
+        ux= max(list(x[xbounds]))
+        plt.fill([lx,ux,ux,lx], [ly,ly,uy,uy], '0.50', alpha=0.2, edgecolor='b')
+    plt.savefig('plots/'+element+"N_NH.png")
 
