@@ -1,25 +1,50 @@
 from config import elem_names, ions, default, input_dict
-from variousutils import getNonBlank, ion_state
+from variousutils import getNonBlank, ion_state, b_to_K
 import warnings
 import re
 
 defaults = [default, default, default]  #  best, upper and lower limits default values
 
+class FormatError(BaseException):
+    def __init__(self, val=None):
+        if type(val) is int:
+            self.msg = 'input must be list of length 3.  Instead got length %d'%(val)
+        else:
+            self.msg = 'input must be list of length 3.'
+    def __str__(self):
+        return self.msg
+
+class ExtendedFormatError(BaseException):
+    def __init__(self, expected, lst):
+        if type(lst) is list:
+            try:
+                l2=str(len(lst[0]))
+            except IndexError:
+                l1=0
+            except TypeError:
+                l1=len(lst)
+                l2=str(type(lst[0]))
+            string = 'Instead got %d X %s'%(l1,l2)  
+        else:
+            string = 'Instead got '+str(type(lst))
+        self.msg = 'Input must be length '+str(expected)+' list of length 3 lists. '+string
+    def __str__(self):
+        return self.msg
+
+
 class Element(object):
     def __init__(self,name,**kwargs):
         self.name=name  #symbol of element (w/o ionisation state)
         self.ions = ions[self.name]
-        for item in list(input_dict.keys()):
-            selfval = kwargs.get(item,[defaults for i in range(self.ions)])
+        for item in list(input_dict.keys())+['b']:
+            selfval = kwargs.get(item, [defaults for i in range(self.ions)])
             try:  
                 assert(len(selfval)==self.ions)
             except:
                 if len(selfval)>self.ions:
                     while len(selfval)>self.ions:
                         if float(selfval[-1])!=default:
-                            msg = name+":"+str(selfval) + \
-                            "\n  not of correct length "+str(self.ions)
-                            raise Exception(msg)
+                            raise ExtendedFormatError(self.ions,selfval)
                         else:
                             del[selfval[-1]]
                 else:
@@ -33,6 +58,12 @@ class Element(object):
                     assert(len(selfval[i])==3)
                 selfval[i] = list(map(float, selfval[i]))
             setattr(self,item,selfval)
+        for i in range(self.ions):
+            if self.temp[i]==defaults and self.b[i]!=defaults:
+                self.temp[i][0] = -30.000
+                self.temp[i][1] = b_to_K(self.name, float(self.b[i][1]))
+                self.temp[i][2] = b_to_K(self.name, float(self.b[i][2]))
+
 
     def __eq__(self,observed):
         if observed.name!=self.name:
@@ -48,12 +79,16 @@ class Element(object):
     def __str__(self):
         out='\n'
         for i in range(ions[self.name]):
-            if getattr(self,'column')[i]!=defaults:
-                out += "%s: N=[%5.3lf %5.3lf %5.3lf] U=%5.3lf Ue=%5.3lf T=%5.3lf Te=%5.3lf\n" % \
-                    (ion_state(i,self.name),getattr(self,'column')[i][0],
-                    getattr(self,'column')[i][1], getattr(self,'column')[i][2],
-                    getattr(self,'ionization')[i][1],getattr(self,'ionization_e')[i][1], 
-                    getattr(self,'temp')[i][1],getattr(self,'temp_e')[i][1])
+            if self.column[i]!=defaults:
+                out+='%s: '%(ion_state(i,self.name))
+                N = ' logN=[ %5.3lf %5.3lf %5.3lf ]'%(self.column[i][0],
+                    self.column[i][1], self.column[i][2])
+                U = ' logU=%5.3lf'%(self.ionization[i][1])
+                try:
+                    T = ' logT=%5.3lf\n'%(self.temp[i][1])
+                except:
+                    raise Exception(str(self.temp))
+                out += N+U+T
         out+='\n'
         return out
 
@@ -84,6 +119,16 @@ class Element(object):
             if not overlap(obsval[i],selfval[i]):
                 return False
         return True
+
+    def get(self,key,state,bounds=False):
+        """
+        a convenience function to simplify Element access
+        """
+        if bounds:
+            val = getattr(self,key)[state]
+            return float(val[0]), float(val[2])
+        else:
+            return float(getattr(self,key)[state][1])
                    
 class ObsData(Element):
     def __init__(self,name,state,**kwargs):
@@ -96,7 +141,7 @@ class ObsData(Element):
         superkwargs={}
         for key, val in list(kwargs.items()):
             superkwargs[key] = [defaults for i in range(ions[self.name])]
-            superkwargs[key][int(state)] = val
+            superkwargs[key][int(state)] = val if len(val)==3 else [val,val,val]
         super(ObsData,self).__init__(name,**superkwargs)
 
     def join(self,absorber):
@@ -113,6 +158,45 @@ class ObsData(Element):
             else:
                 raise Exception('cannot join two absorbers: %s %s\n' % (str(self), str(absorber)))
             setattr(self,item,old)
+
+
+#@Bug:   for some reason self.key is only beig written as a len3 list, instead of list of len3 lists
+    def _update(self,state,key,val):
+        old = getattr(self,key)
+        for item in old:
+            assert(len(item)==3)
+        if old[state] != defaults:
+            warnings.warn('overwriting old data.')
+        old[state] = val
+        setattr(self,key,old)
+
+    def append(self,state,**kwargs):
+        for key, val in kwargs.items():
+            if key in input_dict.keys():
+                if type(val) is list or type(val) is tuple:
+                    if len(val)==3:
+                        self._update(state,key,list(val))
+                    else:
+                        raise FormatError(len(val))
+                elif type(val) is float:
+                    self._update(state,key,[val, val, val])
+                else:
+                    raise TypeError('expected float or list of lists of floats')
+            elif key=='b':
+                if type(val) is list or type(val) is tuple:
+                    if len(val)==3:
+                        val = [ b_to_K(self.name,float(item)) for item in val ]
+                    else:
+                        raise FormatError(len(val))
+                elif type(val) is float:
+                    v = b_to_K(self.name,float(val))
+                    val = [ -30.000, v, v ] 
+                else:
+                    raise TypeError('expected float or list of lists of floats')
+                self._update(state,'temp',val)
+            else:
+                raise KeyError('unrecognized key %s'%(key))
+                
 
 class Model(object):
     def __init__(self,fstream,input_dict=input_dict):
@@ -197,20 +281,21 @@ class Model(object):
 
         """
         item=self.elem[element]
-        if not qty:
+        if qty is None:
             return item
         else:
             vals=getattr(item,qty)
-            if state:
+            if state is None:
                 if not error:
-                    return vals[state][1]
-                else:
-                    return tuple(vals[state])
-            else:
-                if not error:
-                    return [item[1] for item in vals]
+                    return [float(item[1]) for item in vals]
                 else:
                     return [tuple(item) for item in vals]
+            else:
+                if not error:
+                    return float(vals[state][1])
+                else:
+                    return tuple(vals[state])
+
             
 
 def retrieve_section(datastream, section_key):

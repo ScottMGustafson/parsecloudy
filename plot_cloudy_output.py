@@ -28,12 +28,12 @@ color_map={
     6:'mo'
 }
 
-#max number of species to care about for a few diff ions
+#states to plot
 ionmap = {
-'H':3,
-'C':4,
-'O':4,
-'Si':4
+'H':[0,1,2],
+'C':[2],
+'O':[],
+'Si':[2]
 }
 
 
@@ -67,7 +67,7 @@ def plot_NT(element,T,N,hcol,bounds=None):
     """
     hcol = np.array(hcol, dtype=np.float)
     fig,ax = plt.subplots()
-    for i in range(ionmap[element]):
+    for i in ionmap[element]:
         try:
             x = np.array([item[i] for item in T],dtype=np.float)
             y = np.array([item[i] for item in N],dtype=np.float)
@@ -102,7 +102,7 @@ def plot_NU(element,U,N, hcol,bounds=None):
     """
     fig,ax = plt.subplots()
     
-    for i in range(ionmap[element]):
+    for i in ionmap[element]:
         x = np.array([item for item in U],dtype=np.float)
         y = np.array([item[i] for item in N],dtype=np.float)
         x,y,hcol = trim(x,y,hcol)
@@ -135,7 +135,7 @@ def plot_NZ(element,Z,N, hcol,bounds=None):
     """
     fig,ax = plt.subplots()
     
-    for i in range(ionmap[element]):
+    for i in ionmap[element]:
         x = np.array(Z,dtype=np.float)
         y = np.array([item[i] for item in N],dtype=np.float)
         x,y,hcol = trim(x,y,hcol)
@@ -181,11 +181,35 @@ def plot_N(element,N,hcol,bounds=None):
     plt.ylim(ylims)
     plt.ylabel(r"$log(N_{"+element+r" III})$")
     plt.xlabel(r"$["+element+r"/H]$")
-    if not bounds is None: 
-        ly = max(bounds)
-        uy = min(bounds)
-        lx= min(list(x[xbounds]))
-        ux= max(list(x[xbounds]))
-        plt.fill([lx,ux,ux,lx], [ly,ly,uy,uy], '0.50', alpha=0.2, edgecolor='b')
+    #if not bounds is None: 
+    #    ly = max(bounds)
+    #   uy = min(bounds)
+    #   lx= min(list(x[xbounds]))
+    #   ux= max(list(x[xbounds]))
+    #   plt.fill([lx,ux,ux,lx], [ly,ly,uy,uy], '0.50', alpha=0.2, edgecolor='b')
     plt.savefig('plots/'+element+"N_NH.png")
+
+
+def plot_Nhden(element,N,hcol,hden,bounds=None):
+    fig,ax = plt.subplots()
+
+    for i in ionmap[element]:
+        x = np.array(hden,dtype=np.float)
+        y = np.array([item[i] for item in N],dtype=np.float)
+        x,y,hcol = trim(x,y,hcol)
+        y = hcol - y
+        ax.plot(x, y, color_map[i],label=ion_state(i,element))
+
+    xlims=[-3.5,3.5]
+    ylims=[0.,20.]
+    plt.xlim(xlims)
+    plt.ylim(ylims)
+    plt.ylabel(r"$log(N_{HI}/N)$")
+    plt.xlabel(r"$log(n_{H})$")
+    if bounds: 
+        l = 17.409 - max(bounds)
+        u = 17.415 - min(bounds)
+
+        plt.fill([xlims[0],xlims[1],xlims[1],xlims[0]], [l,l,u,u], '0.50', alpha=0.2, edgecolor='b')
+    plt.savefig('plots/'+element+"N_Nhden.png")
 

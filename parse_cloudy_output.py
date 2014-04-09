@@ -111,19 +111,21 @@ def get_observed(fstream="observed/observed_data.dat"):
         name, state, qty, low, best, hi = tuple(item.split())
         try:
             name = elem_names[name]
-        except:
-            pass
+        except KeyError:
+            if name not in elem_names.values():
+                raise
+            else:
+                pass
+            
         low, best, hi = tuple(map(float, [low, best, hi]))
         state = int(state)
-        if qty in list(input_dict.keys()):
-            lst = list(input_dict.keys())
-            dat = {lst[lst.index(qty)]:[low,best,hi]}
+        if qty in list(input_dict.keys())+['b']:
             try:    
-                out[name].join(ObsData(name, state, **dat))
+                out[name].append(state, **{qty:[low,best,hi]})
             except KeyError:
-                out[name] = ObsData(name, state, **dat)
+                out[name] = ObsData(name, state, **{qty:[low,best,hi]})
         else:
-            raise Exception(qty+" not in "+str(list(input_dict.keys())))
+            raise Exception(qty+" not in "+str(list(input_dict.keys()) + ['b']))
     return out
 
 
@@ -148,13 +150,15 @@ def filter_data(indata, key, bounds, element_key=None, state=None):
         if element_key is None:
             return bounds[0]<=getattr(item,key)<=bounds[-1]
         else:
-            return bounds[0]<=item.get_elem(element_key,state,key)<=bounds[-1]
+            return bounds[0]<=item.get_elem(element_key,state,key,False)<=bounds[-1]
     
     return [item for item in indata if cond(item)]
     
 
 
-def main():
+if __name__ == '__main__':
+
+    obs_vals = get_observed()
     pth=paths['output_path']
     outputs = [os.path.join(pth,f) for f in os.listdir(pth) if f.endswith('.out')]
     #stored as list of Model instances
@@ -167,21 +171,24 @@ def main():
             warnings.warn('model '+item+' has critical issues.  skipping')       
 
     obs_vals = get_observed()
-    print(search(obs_vals, all_data))
+    #print(search(obs_vals, all_data))
 
     #filter values out here
+    #sys.exit()
+    #all_data = filter_data(all_data, 'Z', [-4.5, -2.5])
+    all_data = filter_data(all_data, 'U', [-5., 0.])
+    all_data = filter_data(all_data, 'hden', [-2.6, -1.2])
+    #all_data = filter_data(all_data, 'temp', [0., 4.4], 'H', state=0)
+    all_data = filter_data(all_data, 'temp', [-30.,obs_vals['Si'].get('temp',2)],'Si',state=2)
+    all_data = filter_data(all_data, 'temp', [-30.,obs_vals['C'].get('temp',2)],'C',state=2)
 
-    all_data = filter_data(all_data, 'Z', [-5.2, -1.2])
-    all_data = filter_data(all_data, 'U', [-8., -2.])
+    #assert(len(all_data)>0)
 
     #now plot it all
     hdat = write_out(all_data, 'H', return_data=True)
     hcol = np.array( [ item[0] for item in hdat['column'] ] )
     for element in ['Si', 'C']:
-        try:
-            bounds = [obs_vals[element].column[2][0], obs_vals[element].column[2][2]]
-        except:
-            raise Exception(str(obs_vals.keys()))
+        bounds = [obs_vals[element].column[2][0],obs_vals[element].column[2][2]]
         data = write_out(all_data, element,return_data=True)  
 
         #Z = filter_data(outdata, 'Z', [-5.2,-1.2])
@@ -189,8 +196,8 @@ def main():
         plot.plot_NT(element, data['temp'], data['column'], hcol, bounds)
         plot.plot_NU(element, data['U'], data['column'], hcol, bounds)
         plot.plot_NZ(element, data['Z'], data['column'], hcol, bounds)
-        plot.plot_N(element,data['column'],hdat['column'],bounds)  #should only do this out of 
+        plot.plot_N(element,data['column'],hdat['column'],bounds) 
+        
+        plot.plot_Nhden(element,data['column'],hcol,data['hden'],bounds)
 
 
-if __name__ == '__main__':
-    main()
