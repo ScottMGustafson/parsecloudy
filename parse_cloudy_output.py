@@ -192,12 +192,11 @@ if __name__ == '__main__':
         data = write_out(all_data, element,return_data=True)  
 
         #Z = filter_data(outdata, 'Z', [-5.2,-1.2])
-        plot.plot_N(element,data['column'],hdat['column'],bounds)
-        plot.plot_NT(element, data['temp'], data['column'], hcol, bounds)
-        plot.plot_NU(element, data['U'], data['column'], hcol, bounds)
-        plot.plot_NZ(element, data['Z'], data['column'], hcol, bounds)
-         
-        
-        plot.plot_Nhden(element,data['column'],hcol,data['hden'],bounds)
+        #plot.plot_N(element,data['column'],hdat['column'],bounds)
+        #plot.plot_NT(element, data['temp'], data['column'], hcol, bounds)
+        #plot.plot_NU(element, data['U'], data['column'], hcol, bounds)
+        #plot.plot_NZ(element, data['Z'], data['column'], hcol, bounds)
+        plot.plot_frac(element, data['U'], data['column'])
+        #plot.plot_Nhden(element,data['column'],hcol,data['hden'],bounds)
 
 

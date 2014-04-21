@@ -28,14 +28,28 @@ color_map={
     6:'mo'
 }
 
+colors={
+    0:'k-',
+    1:'b-',
+    2:'c-',
+    3:'g-',
+    4:'y-',
+    5:'r-',
+    6:'m-'
+}
+
 #states to plot
 ionmap = {
 'H':[0,1,2],
-'C':[2],
+'C':[0,1,2,3,4,5],
 'O':[],
-'Si':[2]
+'Si':[0,1,2,3,4,5]
 }
 
+
+def total_col(lst):
+    assert(type(lst) is list)
+    return np.log10(sum([10**item[1] for item in lst]))
 
 def trim(x,y):
     while len(x) > len(y):
@@ -171,8 +185,8 @@ def plot_N(element,N,hcol,bounds=None):
     x = np.array(np.array(n) - nH -(solar[element] - solar['H']),dtype=np.float)
     y = np.array([item[2] for item in N],dtype=np.float)
     ax.plot(x, y, 'ko')
-    xlims=[-6.0,0.]
-    ylims=[5.0,20.]
+    xlims=[-5.0,-2.]
+    ylims=[10.,15.]
     plt.xlim(xlims)
     plt.ylim(ylims)
     plt.ylabel(r"$log(N_{"+element+r" III})$")
@@ -208,6 +222,31 @@ def plot_Nhden(element,N,hcol,hden,bounds=None):
 
         plt.fill([xlims[0],xlims[1],xlims[1],xlims[0]], [l,l,u,u], '0.50', alpha=0.2, edgecolor='b')
     plt.savefig('plots/'+element+"N_Nhden.png")
+
+def plot_frac(element,U,N,bounds=None):
+    #fig,ax = plt.subplots()
+    output=open(element+'_frac_out.dat','w')
+    outputlst = [np.array(U,dtype=np.float)]
+    for i in ionmap[element]:
+        #x = np.array(U,dtype=np.float)
+        y = np.array([10.**(item[i][1] - total_col(item)) for item in N],dtype=np.float)
+        outputlst.append(y)
+        #ax.plot(x, y, color_map[i],label=ion_state(i,element))
+
+    outputlst.append(np.array([item[2][1] for item in N],dtype=np.float))
+    outputlst.append(np.array([total_col(item) for item in N]))
+    for i in range(len(outputlst[0])):
+        output.write("%lf %lf %lf %lf %lf %lf %lf %lf\n"%(outputlst[0][i],outputlst[1][i],outputlst[2][i],outputlst[3][i],outputlst[4][i],outputlst[5][i], outputlst[6][i], outputlst[7][i]))
+
+    #xlims=[-4.0,-2.5]
+    #ylims=[0.,1.1]
+    #plt.xlim(xlims)
+    #plt.ylim(ylims)
+    #plt.ylabel(r"$N_X/N$")
+    #plt.xlabel(r"$log(U)$")
+    #plt.savefig('plots/'+element+"frac.png")
+
+    
 
 def _plot(ax,xlabel,ylabel,name,xlims=None,ylims=None):
     plt.xlims(xlims)
