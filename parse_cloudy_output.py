@@ -21,6 +21,7 @@ def write_out(data, element, filter_vals=False, **kwargs):
     
 
     output:
+
     -------
     if return_data is false:
         data file named `<element>_<key>.dat` of the format:
@@ -175,12 +176,12 @@ if __name__ == '__main__':
 
     #filter values out here
     #sys.exit()
-    all_data = filter_data(all_data, 'Z', [-4.5, -2.5])
+    #all_data = filter_data(all_data, 'Z', [-4.5, -2.5])
     all_data = filter_data(all_data, 'U', [-5., 0.])
-    all_data = filter_data(all_data, 'hden', [-2.6, -1.2])
+    #all_data = filter_data(all_data, 'hden', [-2.6, -1.2])
     #all_data = filter_data(all_data, 'temp', [0., 4.4], 'H', state=0)
-    all_data = filter_data(all_data, 'temp', [-30.,obs_vals['Si'].get('temp',2)],'Si',state=2)
-    all_data = filter_data(all_data, 'temp', [-30.,obs_vals['C'].get('temp',2)],'C',state=2)
+    #all_data = filter_data(all_data, 'temp', [-30.,obs_vals['Si'].get('temp',2)],'Si',state=2)
+    #all_data = filter_data(all_data, 'temp', [-30.,obs_vals['C'].get('temp',2)],'C',state=2)
 
     #assert(len(all_data)>0)
 
@@ -188,6 +189,7 @@ if __name__ == '__main__':
     hdat = write_out(all_data, 'H', return_data=True)
     hcol = np.array( [ item[0] for item in hdat['column'] ] )
     for element in ['Si', 'C']:
+        print(element)
         bounds = [obs_vals[element].column[2][0],obs_vals[element].column[2][2]]
         data = write_out(all_data, element,return_data=True)  
 

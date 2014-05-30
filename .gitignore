@@ -6,3 +6,4 @@ output/*
 observed/*
 zlim.py
 *.bak
+*.txt

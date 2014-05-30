@@ -16,7 +16,7 @@ for item in open('SolarAbundance.txt'):
     solar[item[0]] = float(item[1])    
 
 plt.rc('text', usetex=True)
-plt.rc('font', family='serif')
+plt.rc('font', family='serif',size=16)
 
 color_map={
     0:'ko',
@@ -89,7 +89,7 @@ def plot_NT(element,T,N,hcol,bounds=None):
         #x,y,hcol = trim(x,y,hcol)
         y = hcol - y
         ax.plot(x, y, color_map[i],label=ion_state(i,element))
-    plt.ylabel(r"$log(N_{HI}/N)$")
+    plt.ylabel(r"$log(N_{$HI$}/N)$")
     plt.xlabel(r"log(T)")
     xlims=[3.6,5.0]
     ylims=[0.,20.]
@@ -125,7 +125,7 @@ def plot_NU(element,U,N, hcol,bounds=None):
     ylims=[0.,20.]
     plt.xlim(xlims)
     plt.ylim(ylims)
-    plt.ylabel(r"$log(N_{HI}/N)$")
+    plt.ylabel(r"$log(N_{$HI$}/N)$")
     plt.xlabel(r"U")
     if not bounds is None: 
         l = 17.409 - max(bounds)
@@ -158,7 +158,7 @@ def plot_NZ(element,Z,N, hcol,bounds=None):
     ylims=[0.,20.]
     plt.xlim(xlims)
     plt.ylim(ylims)
-    plt.ylabel(r"$log(N_{HI}/N)$")
+    plt.ylabel(r"$log(N_{$HI$}/N)$")
     plt.xlabel(r"Z")
     if not bounds is None: 
         l = 17.409 - max(bounds)
@@ -190,7 +190,7 @@ def plot_N(element,N,hcol,bounds=None):
     plt.xlim(xlims)
     plt.ylim(ylims)
     plt.ylabel(r"$log(N_{"+element+r" III})$")
-    plt.xlabel(r"$["+element+r"/H]$")
+    plt.xlabel(r"["+element+r"/H]$")
     if not bounds is None: 
         ly = max(bounds)
         uy = min(bounds)
@@ -214,8 +214,8 @@ def plot_Nhden(element,N,hcol,hden,bounds=None):
     ylims=[0.,20.]
     plt.xlim(xlims)
     plt.ylim(ylims)
-    plt.ylabel(r"$log(N_{HI}/N)$")
-    plt.xlabel(r"$log(n_{H})$")
+    plt.ylabel(r"$log(N_{$HI$}/N)$")
+    plt.xlabel(r"$log(n_{$H$})$")
     if bounds: 
         l = 17.409 - max(bounds)
         u = 17.415 - min(bounds)
