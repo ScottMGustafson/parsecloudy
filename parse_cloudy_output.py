@@ -1,9 +1,9 @@
 import os
 import plot_cloudy_output as plot
-from config import elem_names, paths, input_dict
+from config import *
 import numpy as np
 from core import *
-from variousutils import getNonBlank, get_ind, ion_state
+from variousutils import getNonBlank, get_ind, ion_state, K_to_b
 import warnings
 
 def write_out(data, element, filter_vals=False, **kwargs):
@@ -18,7 +18,6 @@ def write_out(data, element, filter_vals=False, **kwargs):
     key:  input for filter_data
     bounds:  input for filter_data
     state: input for filter_data
-    
 
     output:
     -------
@@ -74,6 +73,8 @@ def search(observed_vals, model_data):
     for model in model_data:
         s=[('-------%s---------')%(model.fname)]
         for key in list(observed_vals.keys()):
+            if key=='Si':
+                print(str(model.elem[key]))
             if observed_vals[key]==model.elem[key]:
                 s.append(ion_state(0,model.elem[key].name)+": "+str(model.elem[key].column[0][1]))
                 s.append(ion_state(2,model.elem[key].name)+": "+str(model.elem[key].column[2][1]))
@@ -86,7 +87,7 @@ def search(observed_vals, model_data):
     return results
             
 
-def get_observed(fstream="observed/observed_data.dat"):
+def get_observed(fstream=paths['observed_data']):
     """
     format of observed data should be:
     C 2 column lower best upper
@@ -109,6 +110,8 @@ def get_observed(fstream="observed/observed_data.dat"):
     out={}
     for item in getNonBlank(fstream):
         name, state, qty, low, best, hi = tuple(item.split())
+        assert(len(item.split())==6)
+        low, best, hi = tuple(map(float, (low, best, hi) ))
         try:
             name = elem_names[name]
         except KeyError:
@@ -116,8 +119,7 @@ def get_observed(fstream="observed/observed_data.dat"):
                 raise
             else:
                 pass
-            
-        low, best, hi = tuple(map(float, [low, best, hi]))
+
         state = int(state)
         if qty in list(input_dict.keys())+['b']:
             try:    
@@ -158,45 +160,81 @@ def filter_data(indata, key, bounds, element_key=None, state=None):
 
 if __name__ == '__main__':
 
-    obs_vals = get_observed()
     pth=paths['output_path']
-    outputs = [os.path.join(pth,f) for f in os.listdir(pth) if f.endswith('.out')]
+    print(pth)
+    outputs = [os.path.join(pth,f) for f in os.listdir(pth)]
     #stored as list of Model instances
 
     all_data = []
+    assert(len(outputs)>1)
     for item in outputs:
         try:
+            print("parsing model: "+item.split(os.sep)[-1])
             all_data.append(Model(item))
         except:
+            raise
             warnings.warn('model '+item+' has critical issues.  skipping')       
+            pass
+
+    assert(len(all_data)>1)
 
     obs_vals = get_observed()
+
     #print(search(obs_vals, all_data))
 
     #filter values out here
     #sys.exit()
-    all_data = filter_data(all_data, 'Z', [-4.5, -2.5])
-    all_data = filter_data(all_data, 'U', [-5., 0.])
-    all_data = filter_data(all_data, 'hden', [-2.6, -1.2])
+
+    all_data = filter_data(all_data, 'Z', [-4.5, -1.])
+    all_data = filter_data(all_data, 'U', [-4., -1.])
+    #all_data = filter_data(all_data, 'hden', [-2.6, -1.2])
     #all_data = filter_data(all_data, 'temp', [0., 4.4], 'H', state=0)
-    all_data = filter_data(all_data, 'temp', [-30.,obs_vals['Si'].get('temp',2)],'Si',state=2)
-    all_data = filter_data(all_data, 'temp', [-30.,obs_vals['C'].get('temp',2)],'C',state=2)
+    #all_data = filter_data(all_data, 'column', [-30.,obs_vals['Si'].get('column',1)],'Si',state=1)
+    #all_data = filter_data(all_data, 'column', obs_vals['Si'].get('column',2, True),'Si',state=2)
+    #all_data = filter_data(all_data, 'column', obs_vals['Si'].get('column',3, True),'Si',state=3)
+    #all_data = filter_data(all_data, 'column', obs_vals['C'].get('column',1, True),'C',state=1)
+    #all_data = filter_data(all_data, 'column', obs_vals['C'].get('column',2, True),'C',state=2)
+    #all_data = filter_data(all_data, 'column', obs_vals['O'].get('column',0, True),'O',state=0)
+    #all_data = filter_data(all_data, 'column', obs_vals['O'].get('column',5, True),'O',state=5)
+    #all_data = filter_data(all_data, 'temp', [4.5,5.],'Si',state=2)
+    #all_data = filter_data(all_data, 'temp', [4.5,5.0],'C',state=2)
+
+
+
+
+
+    """
+    all_data = [model for model in all_data if 2.5<K_to_b('Si',model.elem['Si'].temp[2][1])<10.]
+    all_data = [model for model in all_data if 17.5<K_to_b('H',model.elem['H'].temp[0][1])<18.8]
+    all_data = [model for model in all_data if 17.3<model.elem['H'].column[0][1]<17.4]
+    all_data = [model for model in all_data if 10.<model.elem['Si'].column[2][1]<11.7]
+    all_data = [model for model in all_data if model.elem['Si'].column[3][1]<11.1]
+    all_data = [model for model in all_data if model.elem['Si'].column[1][1]<11.1]
+    all_data = [model for model in all_data if model.elem['C'].column[3][1]<11.3]
+    all_data = [model for model in all_data if model.elem['C'].column[0][1]<12.6]
+    all_data = [model for model in all_data if model.elem['C'].column[1][1]<12.0]
+    all_data = [model for model in all_data if model.elem['O'].column[0][1]<12.5]
+    all_data = [model for model in all_data if model.elem['O'].column[0][1]<12.3]
+    """
 
     #assert(len(all_data)>0)
-
     #now plot it all
     hdat = write_out(all_data, 'H', return_data=True)
     hcol = np.array( [ item[0] for item in hdat['column'] ] )
-    for element in ['Si', 'C']:
-        bounds = [obs_vals[element].column[2][0],obs_vals[element].column[2][2]]
+    for element in ['Si', 'C', 'O']:
+        bounds = None#[obs_vals[element].column[2][0], obs_vals[element].column[2][2]]
         data = write_out(all_data, element,return_data=True)  
 
-        #Z = filter_data(outdata, 'Z', [-5.2,-1.2])
-        #plot.plot_N(element,data['column'],hdat['column'],bounds)
-        #plot.plot_NT(element, data['temp'], data['column'], hcol, bounds)
-        #plot.plot_NU(element, data['U'], data['column'], hcol, bounds)
-        #plot.plot_NZ(element, data['Z'], data['column'], hcol, bounds)
+
+        assert(len(data.keys())>3)
+        assert(len(data['column'])>3)
+
+        #Z = filter_data(outdata, 'Z', [-4.2,-2.0])
+        plot.plot_N(element,data['column'],hdat['column'],bounds)
+        plot.plot_NT(element, data['temp'], data['column'], hcol, bounds)
+        plot.plot_NU(element, data['U'], data['column'], hcol, bounds)
+        plot.plot_NZ(element, data['Z'], data['column'], hcol, bounds)
         plot.plot_frac(element, data['U'], data['column'])
-        #plot.plot_Nhden(element,data['column'],hcol,data['hden'],bounds)
+        plot.plot_Nhden(element,data['column'],hcol, data['hden'],bounds)
 
 

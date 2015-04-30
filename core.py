@@ -1,7 +1,8 @@
-from config import elem_names, ions, default, input_dict
+from config import *
 from variousutils import getNonBlank, ion_state, b_to_K
 import warnings
 import re
+from linked_list import LinkedList
 
 defaults = [default, default, default]  #  best, upper and lower limits default values
 
@@ -159,7 +160,6 @@ class ObsData(Element):
                 raise Exception('cannot join two absorbers: %s %s\n' % (str(self), str(absorber)))
             setattr(self,item,old)
 
-
 #@Bug:   for some reason self.key is only beig written as a len3 list, instead of list of len3 lists
     def _update(self,state,key,val):
         old = getattr(self,key)
@@ -196,6 +196,7 @@ class ObsData(Element):
                 self._update(state,'temp',val)
             else:
                 raise KeyError('unrecognized key %s'%(key))
+        
                 
 
 class Model(object):
@@ -215,16 +216,25 @@ class Model(object):
         for key, val in list(input_dict.items()):
             data[key] = self._get_vals(val)
 
-        self.Z = float(self._get('metals'))
-        self.U = float(self._get("***> Log(U):"))
-        self.hden=float(self._get('hden'))
+        self.Z       = self._get('metals')
+        self.U       = self._get("***> Log(U):")
+        self.hden    = self._get('hden')
+        self.title   = self._get("* title", as_float=False)
+        self.radius  = self._get("* radius")   
+        self.z_cmb   = self._get("* CMB redshift")  
+        self.stoptemp= self._get("* stop temperature =") 
+        self.fnu     = self._get("* f(nu) =") 
  
         self.elem = {}
         for name in list(elem_names.values()):
             attrs={}
             for attr in list(data.keys()):
-                attrs[attr] = data[attr][name] 
+                try:
+                    attrs[attr] = data[attr][name] 
+                except TypeError:
+                    raise
             self.elem[name] = Element(name,**attrs)
+    #number accessed as model.elem['element name'].quantity[ionization][0(min), 1(best) or 2(max)]
 
     def __str__(self):
         s = '---------------------------------------------------\n'
@@ -232,11 +242,21 @@ class Model(object):
             s+=str(self.elem[item])
         return s
 
-    def _get(self,string):
-        for item in getNonBlank(self.fname):
-            if string in item:
-                return re.findall(r"[-+]?\d*\.\d+|\d+",item)[0]
+
+
+    def _get(self,string, as_float=True):
+        bad_chars='* '
+        if as_float:
+            for item in getNonBlank(self.fname):
+                if string in item:
+                    return float(re.findall(r"[-+]?\d*\.\d+|\d+",item)[0])
+        else:
+            for item in getNonBlank(self.fname):
+                if string in item:
+                    out=item.replace(string,"")   #remove entire substring
+                    return out.translate({ord(x): y for (x, y) in zip(bad_chars, "")}) #strip off all unwanted chars
         return None
+
 
     def _get_vals(self, key):
         """
@@ -258,6 +278,7 @@ class Model(object):
         try:
             lst = retrieve_section(self.fname,key)
         except:
+            raise
             return None   #this will occur with an erroneous file
 
         h_dat = lst.pop(0)[1:4]  #need to 4 since text is included in this line
@@ -267,6 +288,10 @@ class Model(object):
             row[1:]=list(map(float, row[1:]))
             output[elem_names[row[0]]] = row[1:]
         return output 
+
+    def read_model(self):
+        for key in input_dict.keys():
+            setattr(self,key,self._get_vals(key))   
 
     def get_elem(self,element, state=None, qty=None, error=False):
         """
@@ -295,8 +320,6 @@ class Model(object):
                     return float(vals[state][1])
                 else:
                     return tuple(vals[state])
-
-            
 
 def retrieve_section(datastream, section_key):
 
@@ -333,7 +356,6 @@ def retrieve_section(datastream, section_key):
         raise Exception(datastream+'\n'+section_key)
     if 'Hydrogen' in dat[0]:
         dat = mult_lines(dat)
-
     return dat
 
 
@@ -364,56 +386,4 @@ def mult_lines(lst,keys=list(elem_names.keys())):
                 raise Exception("first list item not element name: "+str(out_list))
     return out_list
 
-class _Link(object):
-    def __init__(self,val):
-        self.data=val
-        self._next=None
-    def gonext(self):
-        return self._next
-    def __str__(self):
-        return str(self.data)
 
-class LinkedList(object):
-    def __init__(self,in_list=None):
-        """
-        params:
-        =======
-        head : optional initial data for linked list
-        input_list : optional parameter.  if specified, list will be converted 
-                    to linked list
-        """
-        self.head=None
-        self.tail=None
-        if in_list is not None:
-            for item in in_list:
-                self.new_link(item)
-  
-    def new_link(self,val):
-        newlink=_Link(val)
-        if self.head == None:
-            self.head=newlink
-        if self.tail != None:
-            self.tail._next = newlink
-        self.tail=newlink
-  
-    def pop(self,index=0):
-        prev=None
-        curr=self.head
-        i=0
-        while curr!=None and i<index:
-            prev=curr
-            curr=curr._next
-            i+=1
-        if prev==None:
-            self.head=curr._next
-            return curr.data
-        else:
-            prev._next=curr._next
-            return curr.data
-    def __str__(self):
-        curr=self.head
-        s=''
-        while curr:
-            s+=str(curr.data)+'\n'
-            curr=curr.gonext()
-        return s

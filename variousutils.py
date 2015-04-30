@@ -1,4 +1,5 @@
-from math import log10
+from math import log10, sqrt
+import gzip
 
 """
 various utility functions
@@ -33,10 +34,16 @@ def ion_state(i,element):
 
 def getNonBlank(file):
     """return lines which are neither empty, nor contain any # symbols"""
-    filestream = open(file,'r').readlines()
+    if file.endswith('.gz'):
+        f = gzip.open(file, 'r')
+    else:
+        f=open(file,'r')
+    filestream = f.readlines()
+    f.close()
+
     for line in filestream:
         lines = line.strip()
-        if len(lines)>0 and lines[0] not in '#':
+        if len(lines)>0 and lines[0] != '#':
             yield lines 
 
 def get_ind(fstream, string):
@@ -73,5 +80,23 @@ def b_to_K(elem,val):
     mass = mass_dict[elem]*u  #in ev/c^2
     b=float(val)   #b in km/s
     return log10(0.5*b*b*mass/kb )
+
+def K_to_b(elem, val):
+    u=931.494061 #eV/c^2   w/ c in km/s  (or equivalently, but less relevantly, MeV/c^2 w c in m/s)
+    kb=8.6173324 #in eV/K
+    #u=1.660538921E-27  #in kg
+    #kb=1.3806488E-23 #in J/K
+
+
+    mass_dict = {
+        'C':12.0107,
+        'Si':28.0855,
+        'O':15.9994,
+        'H':1.007825
+    }
+
+    mass = mass_dict[elem]*u  #in ev/c^2
+    T=float(10**val)   #b in km/s
+    return sqrt(2.*T*kb/mass)
     
 
