@@ -1,0 +1,28 @@
+#
+# model constraints:  
+# format:
+# <element name> <ionization> <quantity> <min> <best> <max>
+#
+# available quantities are in config_data.cfg under "Output Data"
+# default value is -30. which will be interpreted as an upper or lower bound
+# depending on context.
+
+H 0 column 17.39  17.4  17.41
+H 0 b 18.2 18.6 18.8
+
+#C 0  column -30. 12.1 12.5
+#C 1  column -30.000  12. 12.5
+#C 2  column -30.  12.0  12.2
+#C 2  b 2. 5.1 15
+#C 3  column -30.000 11.34 11.6
+
+#Si 1  column -30.000 11.3 12.1
+#Si 2  column -30.  11.2  11.8
+#Si 3 b  2. 8 13
+#Si 3  column -30.000 11.28 11.4
+
+#O 0   column -30.000 12.5 12.3
+#O 5   column -30.000 12.3 12.2
+
+
+

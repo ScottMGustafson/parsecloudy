@@ -1,0 +1,5 @@
+H 0 column 1 2 3
+H 0 ionisation 2 3 4
+C 3 temp 2 3 5
+C 3 temp_e 4 5 6
+C 3 column 12 13 14
