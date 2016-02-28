@@ -1,10 +1,17 @@
-from config import *
-from variousutils import getNonBlank, ion_state, b_to_K
-import warnings
+from __future__ import print_function
+import config
+from variousutils import *
 import re
 from linked_list import LinkedList
+import os
+import sys
 
-defaults = [default, default, default]  #  best, upper and lower limits default values
+#import multiprocessing as multi
+#os.system("taskset -p 0xff %d" % os.getpid())
+
+defaults = [config.default, config.default, config.default]  #  best, upper and lower limits default values
+bounds={}
+
 
 class FormatError(BaseException):
     def __init__(self, val=None):
@@ -12,6 +19,12 @@ class FormatError(BaseException):
             self.msg = 'input must be list of length 3.  Instead got length %d'%(val)
         else:
             self.msg = 'input must be list of length 3.'
+    def __str__(self):
+        return self.msg
+
+class ModelFailed(BaseException):
+    def __init__(self, val=None):
+        self.msg = 'Model failed'
     def __str__(self):
         return self.msg
 
@@ -28,179 +41,13 @@ class ExtendedFormatError(BaseException):
             string = 'Instead got %d X %s'%(l1,l2)  
         else:
             string = 'Instead got '+str(type(lst))
-        self.msg = 'Input must be length '+str(expected)+' list of length 3 lists. '+string
+        self.msg = 'Input must be length '+str(expected)+\
+                   ' list of length 3 lists. '+string
     def __str__(self):
-        return self.msg
-
-
-class Element(object):
-    def __init__(self,name,**kwargs):
-        self.name=name  #symbol of element (w/o ionisation state)
-        self.ions = ions[self.name]
-        for item in list(input_dict.keys())+['b']:
-            selfval = kwargs.get(item, [defaults for i in range(self.ions)])
-            try:  
-                assert(len(selfval)==self.ions)
-            except:
-                if len(selfval)>self.ions:
-                    while len(selfval)>self.ions:
-                        if float(selfval[-1])!=default:
-                            raise ExtendedFormatError(self.ions,selfval)
-                        else:
-                            del[selfval[-1]]
-                else:
-                    while len(selfval)<self.ions:
-                        selfval.append(defaults)
-            #include [min,best,max] for each.  
-            for i in range(len(selfval)):  
-                if not type(selfval[i]) is list:
-                    selfval[i] = [selfval[i], selfval[i], selfval[i]]
-                else:
-                    assert(len(selfval[i])==3)
-                selfval[i] = list(map(float, selfval[i]))
-            setattr(self,item,selfval)
-        for i in range(self.ions):
-            if self.temp[i]==defaults and self.b[i]!=defaults:
-                self.temp[i][0] = -30.000
-                self.temp[i][1] = b_to_K(self.name, float(self.b[i][1]))
-                self.temp[i][2] = b_to_K(self.name, float(self.b[i][2]))
-
-
-    def __eq__(self,observed):
-        if observed.name!=self.name:
-            return False
-        for item in list(input_dict.keys()):
-            if not self._attr_eq(observed,item):
-                return False
-        return True
-
-    def __ne__(self,observed):
-        return not self.__eq__(observed)
-
-    def __str__(self):
-        out='\n'
-        for i in range(ions[self.name]):
-            if self.column[i]!=defaults:
-                out+='%s: '%(ion_state(i,self.name))
-                N = ' logN=[ %5.3lf %5.3lf %5.3lf ]'%(self.column[i][0],
-                    self.column[i][1], self.column[i][2])
-                U = ' logU=%5.3lf'%(self.ionization[i][1])
-                try:
-                    T = ' logT=%5.3lf\n'%(self.temp[i][1])
-                except:
-                    raise Exception(str(self.temp))
-                out += N+U+T
-        out+='\n'
-        return out
-
-    def _attr_eq(self,observed,item):
-        selfval = getattr(self,item)
-        obsval  = getattr(observed,item)
-        for i in range(ions[self.name]):
-            if obsval[i] == defaults: #if all default case, skip
-                continue
-            def checklen(lst):
-                if not type(lst) is list:
-                    lst = [lst, lst, lst]
-                else:
-                    assert(len(lst)==3)
-                return lst
-
-            selfval[i] = checklen(selfval[i])
-            obsval[i]  = checklen( obsval[i])
-
-            obsmin,  obsbest,  obsmax  = tuple(obsval[i]) 
-            selfmin, selfbest, selfmax = tuple(selfval[i])
-
-            def overlap(a,b):
-                conda = a[2] >= b[0] if a[2]!=b[0]!=default else True
-                condb = a[0] <= b[2] if a[0]!=b[2]!=default else True
-                return conda and condb
-
-            if not overlap(obsval[i],selfval[i]):
-                return False
-        return True
-
-    def get(self,key,state,bounds=False):
-        """
-        a convenience function to simplify Element access
-        """
-        if bounds:
-            val = getattr(self,key)[state]
-            return float(val[0]), float(val[2])
-        else:
-            return float(getattr(self,key)[state][1])
-                   
-class ObsData(Element):
-    def __init__(self,name,state,**kwargs):
-        """
-        Subclass of Element.   Each physical quantity as list :[min, best, max] 
-        where min and max correspond to upper and lower limits.
-        """
-        self.name = name
-        self.state = int(state)
-        superkwargs={}
-        for key, val in list(kwargs.items()):
-            superkwargs[key] = [defaults for i in range(ions[self.name])]
-            superkwargs[key][int(state)] = val if len(val)==3 else [val,val,val]
-        super(ObsData,self).__init__(name,**superkwargs)
-
-    def join(self,absorber):
-        """
-        join another obsData instance with the current one
-        """
-        name = ion_state(self.state,self.name)
-        absname=absorber.name
-        for item in list(input_dict.keys()):
-            old = getattr(self,item)
-            new = getattr(absorber,item)
-            if old[absorber.state] == defaults or new[absorber.state] == defaults:
-                old[absorber.state] = new[absorber.state]
-            else:
-                raise Exception('cannot join two absorbers: %s %s\n' % (str(self), str(absorber)))
-            setattr(self,item,old)
-
-#@Bug:   for some reason self.key is only beig written as a len3 list, instead of list of len3 lists
-    def _update(self,state,key,val):
-        old = getattr(self,key)
-        for item in old:
-            assert(len(item)==3)
-        if old[state] != defaults:
-            warnings.warn('overwriting old data.')
-        old[state] = val
-        setattr(self,key,old)
-
-    def append(self,state,**kwargs):
-        for key, val in kwargs.items():
-            if key in input_dict.keys():
-                if type(val) is list or type(val) is tuple:
-                    if len(val)==3:
-                        self._update(state,key,list(val))
-                    else:
-                        raise FormatError(len(val))
-                elif type(val) is float:
-                    self._update(state,key,[val, val, val])
-                else:
-                    raise TypeError('expected float or list of lists of floats')
-            elif key=='b':
-                if type(val) is list or type(val) is tuple:
-                    if len(val)==3:
-                        val = [ b_to_K(self.name,float(item)) for item in val ]
-                    else:
-                        raise FormatError(len(val))
-                elif type(val) is float:
-                    v = b_to_K(self.name,float(val))
-                    val = [ -30.000, v, v ] 
-                else:
-                    raise TypeError('expected float or list of lists of floats')
-                self._update(state,'temp',val)
-            else:
-                raise KeyError('unrecognized key %s'%(key))
-        
-                
+        return self.msg    
 
 class Model(object):
-    def __init__(self,fstream,input_dict=input_dict):
+    def __init__(self,input_dict=config.input_dict,data=None,fname=None):
         """
         each attribute will be a dict of lists with each list element 
         corresponding to a different ionization state
@@ -211,125 +58,342 @@ class Model(object):
         input_dict : dict of input data as defined above
         """
 
-        data = {}
-        self.fname=fstream
-        for key, val in list(input_dict.items()):
-            data[key] = self._get_vals(val)
-
-        self.Z       = self._get('metals')
-        self.U       = self._get("***> Log(U):")
-        self.hden    = self._get('hden')
-        self.title   = self._get("* title", as_float=False)
-        self.radius  = self._get("* radius")   
-        self.z_cmb   = self._get("* CMB redshift")  
-        self.stoptemp= self._get("* stop temperature =") 
-        self.fnu     = self._get("* f(nu) =") 
- 
-        self.elem = {}
-        for name in list(elem_names.values()):
-            attrs={}
-            for attr in list(data.keys()):
-                try:
-                    attrs[attr] = data[attr][name] 
-                except TypeError:
-                    raise
-            self.elem[name] = Element(name,**attrs)
-    #number accessed as model.elem['element name'].quantity[ionization][0(min), 1(best) or 2(max)]
-
-    def __str__(self):
-        s = '---------------------------------------------------\n'
-        for item in list(self.elem.keys()):
-            s+=str(self.elem[item])
-        return s
-
-
-
-    def _get(self,string, as_float=True):
-        bad_chars='* '
-        if as_float:
-            for item in getNonBlank(self.fname):
-                if string in item:
-                    return float(re.findall(r"[-+]?\d*\.\d+|\d+",item)[0])
+        if data:
+            self.data=data
         else:
-            for item in getNonBlank(self.fname):
-                if string in item:
-                    out=item.replace(string,"")   #remove entire substring
-                    return out.translate({ord(x): y for (x, y) in zip(bad_chars, "")}) #strip off all unwanted chars
-        return None
+            if not fname:
+                raise Exception("must specify input file")
+            if 'Warnings exist, this calculation has serious problems' in open(fname).read():
+                raise ModelFailed()
+            if '>>>>>>>>>> Cautions are present.' in open(fname).read():
+                raise ModelFailed()
 
+            #if 'abundances ism' in open(fname).read():
+            #    raise ModelFailed()
 
-    def _get_vals(self, key):
-        """
-        parse value for some element's attribute given by key
-
-        input parameters:
-        -----------------
-        fstream : standard cloudy output file
-        key :     name of attribute according to cloudy output.
-        for example, column density would be 
-            `key = "Log10 Column density (cm^-2)"`
-
-        output:
-        -------
-        a dict of key, val where:
-        key  = element name
-        val  = list of ions' attribute: val[0]=neutral, val[n]=nth ionization
-        """
-        try:
-            lst = retrieve_section(self.fname,key)
-        except:
-            raise
-            return None   #this will occur with an erroneous file
-
-        h_dat = lst.pop(0)[1:4]  #need to 4 since text is included in this line
-        output = {elem_names['Hydrogen']:h_dat}
-
-        for row in lst:  #repeat for other elements what we did for H
-            row[1:]=list(map(float, row[1:]))
-            output[elem_names[row[0]]] = row[1:]
-        return output 
-
-    def read_model(self):
-        for key in input_dict.keys():
-            setattr(self,key,self._get_vals(key))   
-
-    def get_elem(self,element, state=None, qty=None, error=False):
-        """
-        get output for a specific element.
-    
-        input params:
-        -------------
-        element:  which element to parse
-        state:  ionization state (0=I, 1=II, etc)
-        qty:  which quantity?  (keys from input_dict)
-        bounds: list of bounds: [lower, upper]
-
-        """
-        item=self.elem[element]
-        if qty is None:
-            return item
-        else:
-            vals=getattr(item,qty)
-            if state is None:
-                if not error:
-                    return [float(item[1]) for item in vals]
-                else:
-                    return [tuple(item) for item in vals]
             else:
-                if not error:
-                    return float(vals[state][1])
+                self.data=get_dict(fname)
+
+        self.fname=fname
+
+
+    def append_datum(self, name, trans, qty, value=defaults):
+        """
+        append a data entry into data dict
+        """    
+
+        if type(value) in [float, int, str]:
+            value = (config.default, float(value), config.default) 
+        elif len(value)==3:
+            pass
+        else:
+            raise FormatError()
+        
+        if name in self.data.keys():
+            if trans in self.data[name].keys():
+                self.data[name][trans][qty] = value
+            else:
+                self.data[name][trans] = {qty:value}
+        else:
+            self.data[name] = {trans: {qty:value}}
+
+    def get(self, name, trans, qty, errors=False, observed=False):
+
+        data = config.observed if observed else self.data
+
+        try:
+            if errors:
+                return data[name][trans][qty]
+            else:
+                return data[name][trans][qty][1]
+        except KeyError:
+            print("available keys: ",data.keys(),"\nchosen key ",name,'\n\n', 
+                file=sys.stderr) 
+            raise
+            
+        
+    def get_list_by_ionization(self, atom, qty):
+        """returns a list of values for each ionization given a qty
+
+        for example:    
+            model.get_list("column")
+        returns column densities of  [HI, HII, H2]
+        """
+        return [self.data[atom][i][qty] for i in range(0,config.ions[atom])]
+
+    @staticmethod
+    def get_qty_lst(modellist, atom, qty, trans, errors=False):
+        out=[]
+        for item in modellist:
+            try:        
+                if errors:
+                    out.append(item.data[atom][trans][qty])
                 else:
-                    return tuple(vals[state])
+                    out.append(item.data[atom][trans][qty][1])
+            except KeyError:
+                if (trans+1)>len(item.data[atom].keys()):
+                    pass
+                else:
+                    print("\n\natom=%s transition=%d qty=%s"%(atom, trans, qty),
+                        file=sys.stderr)
+                    print("available quantities:\n  ", config.input_dict.keys(),
+                        file=sys.stderr) 
+                    print("this datum's keys:\n  ",item.data[atom][trans].keys(),
+                        file=sys.stderr) 
+                    raise
+        return out
+
+
+
+def compare(a,b, default=config.default):
+    """
+    returns True if a is consistent with b
+    a = observed limits  [lower, best, upper]
+    b = model limits [lower, best, upper]
+
+    user specifies observed limits, so these are more hard.
+    The model limits are specified as follows:
+        b[0]=default, b[1]=number, b[2]=default:
+        -->no limits specified, ignore them
+        b[0]=number, b[2]=default or vice-a-versa:
+        -->upper or lower limits specified.  listen to them
+        all b[0,1,2] =number:
+        -->hard range specified.
+
+    The observed limits are specified as follows:
+        a[0]==a[2] == default:
+        -->no upper or lower limits established. User doesn't understand 
+        the point of error bars so raise exception
+
+        a[2]!=a[0]==default: 
+        --> upper limit established
+        a[0]!=a[2]==default:
+        --> lower limit established
+        a[0]!=a[2]!=default:
+        -->hard range defined.
+        
+    """
+
+
+    #check for an error:
+    if a[0]!=a[2]!=default and a[0]>a[2]:
+        a[0], a[2] = a[2], a[0]
+    if b[0]!=b[2]!=default and b[0]>b[2]:
+        b[0], b[2] = b[2], b[0]
+       
+
+    if   a[0]==a[2]==default:    
+        raise Exception("need to specifiy SOME observed limits")
+
+    elif a[0]!=a[2]==default:  #lower limit observed specified
+        if   b[0]==b[2]==default:  #no model limits applied
+            return b[1]>=a[0]
+        elif b[0]!=b[2]==default:  #lower model limits specified
+            return b[1]>=a[0]
+        elif b[2]!=b[0]==default:  #upper model limits specified
+            return b[2]>=a[0]
+        else:   #hard range determined for b.
+            return b[2]>=a[0]
+
+    elif a[2]!=a[0]==default: #upper limit observed specified  
+        if   b[0]==b[2]==default:    
+            return b[1]<=a[2]
+        elif b[0]!=b[2]==default:  
+            return b[0]<=a[2]
+        elif b[2]!=b[0]==default:  
+             return b[1]<=a[2]
+        else:
+            return b[0]<=a[2]
+
+    else:  #an error bar (confidence interval) is specified
+        if   b[0]==b[2]==default:    
+            return a[0]<=b[1]<=a[2]
+        elif b[0]!=b[2]==default:  
+            return b[0]<=a[2]
+        elif b[2]!=b[0]==default:  
+            return b[2]>=a[0]
+        else:
+            return b[2]>=a[0] and b[0]<=a[2]
+
+def _filter(model):
+    """
+    returns True if model is consistent with constraints
+    returns False on an error or if model is NOT consistent with constraints
+
+    """
+    if not ("H" in model.data.keys()):
+        return False
+    for atom in config.constraints.keys():
+        for trans in config.constraints[atom].keys():
+            for attr in config.constraints[atom][trans].keys():
+                if attr=="b":  #for b, we can only do lower limits since cannot a priori know the thermal contribution to line width
+                    b=K_to_b(atom,model.data[atom][int(trans)]["temp"][1]) #this will be lower than the actual line width
+                    mod=[b,b,-30.]
+
+                else:
+                    try:
+                        mod=model.data[atom][int(trans)][attr]
+                        #mod=model.get(atom, int(trans), attr, errors=True)
+                    except KeyError:
+                        print("no key called \"%s\""%(attr))
+                        #print("input is get(%s, %d, %s)"%(
+                        #    atom, int(trans), attr),file=sys.stderr
+                        #)
+                        return False
+                obs = config.constraints[atom][trans][attr]
+                assert(len(obs)==len(mod)==3) 
+                if not compare(obs,mod):  
+                    return False
+                for key in config.input_dict.keys():
+                    try:
+                        assert(key in model.data[atom][trans].keys())
+                    except AssertionError:
+                        print("%s not in "%(key),model.data[atom][trans].keys(),
+                            file=sys.stderr) 
+                        raise
+    return True
+
+
+def filter_models(models):
+    """filter list of models based on observed values"""
+    out=[]
+    for model in models:
+        if _filter(model):
+           out.append(model)
+    return out
+
+
+def walk_dirs(start_dir):
+    output=[]
+    print(start_dir)
+    for path, dirs, files in os.walk(start_dir):
+        for f in files:
+            if f.endswith(".out"):
+                output.append(os.path.join(path,f))
+                #output.append(Model(fname=os.path.join(path,f)))
+    return output
+
+def walk_dirs_(start_dir):
+    output=[]
+    for path, dirs,files in os.walk(start_dir):
+        for f in files:
+            if f.endswith(".out"):
+                output.append(os.path.join(path,f))
+                #output.append(Model(os.path.join(path,f)))
+    return output
+
+def walkdirs(path):
+    manager=multi.Manager()
+    output=manager.list([])
+    unsearched = multi.JoinableQueue()
+    unsearched.put(path)
+
+    def explore_path(path):
+        print('exploring')
+        directories = []
+        nondirectories = []
+        for filename in os.listdir(path):
+            fullname = os.path.join(path, filename)
+            if os.path.isdir(fullname):
+                directories.append(fullname)
+            else:
+                nondirectories.append(filename)
+            for filename in nondirectories:
+                print('.')
+                #do work on file
+                if filename.endswith(".out"):
+                    #output.append(Model(os.path.join(path,filename)))
+                    #print(os.path.join(path,filename))
+                    print(len(output))
+                    output.append(os.path.join(path,filename))
+
+        return directories
+
+    def parallel_worker():
+        while True:
+            dirs = explore_path( unsearched.get() )
+            for newdir in dirs:
+                unsearched.put(newdir)
+            unsearched.task_done()
+            print('-\n')
+
+
+    pool = multi.Pool(processes=config.nproc)
+    #for i in range(config.nproc):
+    #    pool.apply_async(parallel_worker)
+    #    print(str(i))
+
+    pool.apply_async(parallel_worker)
+    unsearched.join()
+
+    return list(output)
+
+
+
+
+def get_dict(fname,input_dict=config.input_dict):
+    """
+    each attribute will be a dict of lists with each list element 
+    corresponding to a different ionization state
+
+    input parameters:
+    -----------------
+    fstream: a filestream-like list of data from cloudy output
+    input_dict : dict of input data as defined above
+    """
+
+    data = {}
+
+    #print("parsing %s"%fname)
+    for qty in list(input_dict.keys()):
+        try:
+            lst=retrieve_section(fname,input_dict[qty])
+            for row in lst:  
+                if row[0]=="Hydrogen":
+                    for i in [0,1,2]:
+                        data = append_datum(data,"H", i, qty, float(row[i+1]))
+                else:
+                    name=config.elem_names[row[0]]
+                    for i in range(1, config.ions[name]):
+                        if len(row)>i:
+                            data = append_datum(data, name, i-1, qty, float(row[i]))
+                        else: 
+                            data = append_datum(data,name, i-1, qty, config.default)
+        except:
+            print(fname+" has no key: %s"%input_dict[qty], file=sys.stderr)
+            pass
+
+    for key, val in config.other_attrs.iteritems():
+        data[key]=_get(fname,val)
+    return data
+
+def _get(fname, string, as_float=True):
+    bad_chars='* '
+    if as_float:
+        for item in getNonBlank(fname):
+            if string in item:
+                return float(re.findall(r"[-+]?\d*\.\d+|\d+",item)[0])
+    else:
+        for item in getNonBlank(fname):
+            if string in item:
+                out=item.replace(string,"")   #remove entire substring
+                try:
+                    return out.translate(
+                                {ord(x): y for (x, y) in zip(bad_chars, "")}
+                                        ) #strip off all unwanted chars
+                except:
+                    raise Exception(str(item))
+    return None
 
 def retrieve_section(datastream, section_key):
 
     """
-    retrieve a section's data.  note that this may sometimes go over multiple lines
+    retrieve a section's data.  This may sometimes go over multiple lines
 
     Parameters:
     ===========
     datastream:  list of data.  one line per element
-    section_key: key name for the section of interest.  This may (unfortunately) 
+    section_key: key name for the section of interest.  This may
                  be in the first line of data
     separator:   separator in text that separates this from other sections
 
@@ -352,14 +416,13 @@ def retrieve_section(datastream, section_key):
             curr=curr.gonext()
     try:
         assert(len(dat)>0)
-    except:
-        raise Exception(datastream+'\n'+section_key)
+    except AssertionError:
+        raise Exception(datastream+' has no key: '+section_key)
     if 'Hydrogen' in dat[0]:
         dat = mult_lines(dat)
     return dat
 
-
-def mult_lines(lst,keys=list(elem_names.keys())):
+def mult_lines(lst,keys=list(config.elem_names.keys())):
     """
     sometimes the output crosses over multiple lines.  takes the extra lines 
     and appends them to the primary line.
@@ -383,7 +446,38 @@ def mult_lines(lst,keys=list(elem_names.keys())):
             try:
                 out_list[-1]+=item.split()
             except:
-                raise Exception("first list item not element name: "+str(out_list))
+                raise Exception("first list item not element name: "+\
+                                str(out_list))
     return out_list
+
+def append_datum(data, name, trans, qty, value=defaults):
+    """
+    append a data entry into data dict
+    """    
+
+    if type(value) in [float, int, str]:
+        value = (config.default, float(value), config.default) 
+    elif len(value)==3:
+        pass
+    else:
+        raise Exception
+    
+    if name in data.keys():
+        if trans in data[name].keys():
+            data[name][trans][qty] = value
+        else:
+            data[name][trans] = {qty:value}
+    else:
+        data[name] = {trans: {qty:value}}
+    return data
+
+def object_list(verbose=False):
+    filelist=walk_dirs_(config.configDict["paths"]["start_dir"])
+    pool = multi.Pool(processes=config.nproc)
+    if verbose:
+        print("pool initiated with %d processes"%config.nproc)
+    object_list = pool.map(get_dict, filelist)
+    return object_list
+
 
 

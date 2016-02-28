@@ -1,9 +1,19 @@
 from math import log10, sqrt
 import gzip
 
-"""
-various utility functions
-"""
+u=931.494061 #eV/c^2   w/ c in km/s  (or equivalently, but less relevantly, MeV/c^2 w c in m/s)
+kb=8.6173324 #in eV/K
+
+amu = {
+        "H":1.00794,
+        "C":12.0107,
+        "N":14.00674,
+        "Fe":55.845,
+        "Si":28.0855,
+        "O": 15.9994,
+        "Al":26.981539,
+        "D":2.014102
+      }
 
 def int_to_roman(n):
     """
@@ -18,6 +28,7 @@ def int_to_roman(n):
         count = int( n / ints[i])
         result += nums[i] * count
         n -= ints[i] * count
+
     return result
 
 
@@ -65,38 +76,14 @@ def get_ind(fstream, string):
     raise Exception("\""+string+"\" not found")
 
 def b_to_K(elem,val):
-    u=931.494061 #eV/c^2   w/ c in km/s
-    kb=8.6173324 #in eV/K
-    #u=1.660538921E-27  #in kg
-    #kb=1.3806488E-23 #in J/K
-
-    mass_dict = {
-        'C':12.0107,
-        'Si':28.0855,
-        'O':15.9994,
-        'H':1.007825
-    }
-
-    mass = mass_dict[elem]*u  #in ev/c^2
+    mass = amu[elem]*u  #in ev/c^2
     b=float(val)   #b in km/s
     return log10(0.5*b*b*mass/kb )
 
 def K_to_b(elem, val):
-    u=931.494061 #eV/c^2   w/ c in km/s  (or equivalently, but less relevantly, MeV/c^2 w c in m/s)
-    kb=8.6173324 #in eV/K
-    #u=1.660538921E-27  #in kg
-    #kb=1.3806488E-23 #in J/K
-
-
-    mass_dict = {
-        'C':12.0107,
-        'Si':28.0855,
-        'O':15.9994,
-        'H':1.007825
-    }
-
-    mass = mass_dict[elem]*u  #in ev/c^2
-    T=float(10**val)   #b in km/s
+    mass = amu[elem]*u  #in ev/c^2
+    T=float(10.**val)   #b in km/s
     return sqrt(2.*T*kb/mass)
+    
     
 

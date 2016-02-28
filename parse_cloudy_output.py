@@ -1,240 +1,200 @@
-import os
+import config
+import os, sys
 import plot_cloudy_output as plot
-from config import *
 import numpy as np
 from core import *
 from variousutils import getNonBlank, get_ind, ion_state, K_to_b
 import warnings
+from time import time
 
-def write_out(data, element, filter_vals=False, **kwargs):
-    """
-    write all model data as dict of lists
 
-    input params:
-    -------------
-    data: list of Model instances
-    element: a string of which element.
-    filter_vals:  should they be filtered?
-    key:  input for filter_data
-    bounds:  input for filter_data
-    state: input for filter_data
 
-    output:
-    -------
-    if return_data is false:
-        data file named `<element>_<key>.dat` of the format:
-        (assuming element name X...)
-            ```
-            <datum for X_I>  <datum for X_II>  <datum for X_III (or H2 if X==H)>
-
-            ```
-    if return_data is True:
-        list of lists in the same format as above
-
-    """
-    if filter_vals:
-        state = kwargs.get(state,None)
-        bounds= kwargs.get(bounds,None)
-        data = filter_data(data, key, bounds, element, state)
-
-    elems = [ item.elem[element] for item in data ] 
-    ret_dict = {}
-    for key in list(input_dict.keys()):
-        ret_dict[key] = [ getattr(item,key) for item in elems ]
-    ret_dict['Z']=[item.Z for item in data]
-    ret_dict['U']=[item.U for item in data]
-    ret_dict['hden']=[item.hden for item in data]
-    return ret_dict
+def main():
+    pt0 = time()
     
-def search(observed_vals, model_data):
-    """
-    convert observed vals into a Model instance with tolerances defined by 
-    upper and lower limits:  each entry like 
-      `{ionname : {ion : num, qty1 : [best, lowest, highest], qty2 : [b,l,h], ...} }`
-    ion is which state its in.  0=Neutral, 1=singly ionized, etc
-    qty is any quantity like logN, logU, etc
-    
-    suppose you observed CIV with logN=14+/-0.1.
-    entry would be:
-    '{ C: { ion:3, column:[14,13.9,14.1] } }'
-    
-    input params:
-    =============
-    observed_vals: a list of ObsData instances corresponding to all observed 
-        quantities.  For now this means only one absorption system.
-    model_data: list of Model instances
-    
-    output:
-    =======
-    model w/ observed values (within tolerances)
-    """
+    all_data = []
+    survivors=[]
 
-    results = []
-    for model in model_data:
-        s=[('-------%s---------')%(model.fname)]
-        for key in list(observed_vals.keys()):
-            if key=='Si':
-                print(str(model.elem[key]))
-            if observed_vals[key]==model.elem[key]:
-                s.append(ion_state(0,model.elem[key].name)+": "+str(model.elem[key].column[0][1]))
-                s.append(ion_state(2,model.elem[key].name)+": "+str(model.elem[key].column[2][1]))
-        if len(s)>3:
-            for i in range(len(s)):
-                print(s[i])
-        result = [ observed_vals[key]==model.elem[key] for key in list(observed_vals.keys()) ] 
-        if len(set(result))==1 and result[0]==True:  #if all elements in result are True:
-            results.append(model.fname)
-    return results
-            
 
-def get_observed(fstream=paths['observed_data']):
-    """
-    format of observed data should be:
-    C 2 column lower best upper
+    print('starting')
+    for item in walk_dirs(config.configDict["paths"]["start_dir"]):
+        if item.endswith('.out'):
+            try:
+                mod=Model(fname=item)
+            except:
+                continue
 
-    <element name (symbol)> <ionization state> <quantity> lower, best, upper estimate
+            t=0
+            while t<len(mod.data['Si'].keys()):
+                a=mod.data['Si'][t]['column']
+                #boost columns by a factor of 2 to make popII. also boost by factor of 1.04 dex, since initially used ISM abundnaces
+                mod.data['Si'][t]['column']=tuple((a[0]+1.34, 
+                                                   a[1]+1.34, 
+                                                   a[2]+1.34))
+                t+=1
 
-    quantity should follow input_dict's keys
+            """
+            pass: 1
+            CIII: temp 4 -- 4.29
+                    Z  == -4.33 -- -1.
+            SiII:  Z<-1.63
 
-    example input:
-    ` 
-        H 0 column 1 2 3
-        H 0 ionisation 2 3 4
-        C 3 temp 2 3 5
-        C 3 temp_e 4 5 6
-        C 3 column 12 13 14
-    `
 
-    """
+            pass 2
+            CIII:  T=4.03--4.29
+            CIII:   U>-4.56
+            SiIII:  SiIII nh<-0.3
 
-    out={}
-    for item in getNonBlank(fstream):
-        name, state, qty, low, best, hi = tuple(item.split())
-        assert(len(item.split())==6)
-        low, best, hi = tuple(map(float, (low, best, hi) ))
+
+            pass 3
+            CIII:  Z<-1.9
+            SiIII:  Z<-2.48
+
+            pass 4:  
+            CIII:  U>-4.05
+            CIII:  nh<-.85
+
+            SiIII:  U>-4.22
+            SiII:  Z<-2.59
+            SiIII:  nh<-0.7
+
+
+            pass 5:
+            SiII:  Z<-2.77
+
+            final pass:
+            [HI/H] = -1.33 -- -2.54
+            """
+            all_data.append(mod)
+            if 4.03<mod.data['H'][0]['temp'][1]<4.3 \
+                and -4.33<float(mod.data['Z'])<-2.77\
+                and -4.05<float(mod.data['U'])\
+                and float(mod.data['hden'])<-.85:
+               
+                print(item[-12:])
+                survivors.append(mod)
+
+    pt1=time()
+    print("walk and load=%lf" % (pt1-pt0))
+    print("out of %d files"%len(all_data))
+
+    survivors = filter_models(survivors)   
+
+    pt2=time()
+    print("filter=%lf" % (pt2-pt1)) 
+
+    if len(survivors)<1:
+        print("no survivors...")
+        return
+    else:
+        print("%d models survived."%len(survivors))
+    #for item in survivors:
+    #    str(item)
+
+
+    hdat, hcol= [], [[],[],[]]
+    for item in survivors:
         try:
-            name = elem_names[name]
+            hdat.append(item.data["H"])
         except KeyError:
-            if name not in elem_names.values():
+            print("available keys: ",item.data.keys())
+
+    for j in [0,1,2]:
+       for i in range(0,len(hdat)):
+            try:
+                hcol[j]=hdat[i][j]["column"][1]
+            except IndexError:
+                print(i, len(hdat)-1)
+                print(j, 3-1)
                 raise
-            else:
+
+    pt3=time()
+    print("get hcol: %lf"%(pt3-pt2))
+
+    #survivors = [item for item in survivors if float(item.data['Z'])<-2.]
+    #survivors = [item for item in survivors if float(item.data['temp'])>4.08]
+    #survivors = [item for item in survivors if float(item.data['U'])<-2.]
+    #survivors = [item for item in survivors if float(item.data['hden'])<-1.]
+
+
+
+
+    temp =Model.get_qty_lst(survivors,'H',"temp",0)
+    hden = [item.data['hden'] for item in survivors]
+    U    = [item.data['U']    for item in survivors]
+    Z    = [item.data['Z']    for item in survivors]
+
+
+    
+
+    plot.plot_TZ(temp,Z)
+    plot.plot_ZU(U,Z)
+    plot.plot_NHIH(survivors,True)
+    plot.plot_nhU(hden,U)
+
+
+    for elem in config.to_plot.keys():
+        bounds=config.observed[elem]
+        column, temp = [], []
+        for i in range(0,config.ions[elem]):
+
+            column.append(Model.get_qty_lst(survivors,elem,"column",i))
+            temp.append(Model.get_qty_lst(survivors,elem,"temp",i))
+            if len(column[-1])!=len(survivors):
+                column[-1] = config.default*np.ones( len(survivors) ) 
+            if len(temp[-1])!=len(survivors):
+                temp[-1]   = config.default*np.ones( len(survivors) ) 
+        """
+        try:
+            b=[ [K_to_b(elem,item) for item in temp[i]] for i in range(len(temp)) ]
+        except:
+            print("parsing b failed.  prolley a bug")
+            raise
+        try:
+            plot.plot_bT(   elem, temp,  b, True)#, xlims=[1.,5.], ylims=[10., 16.5])
+        except:
+            print("plotting bT failed.  prolley a bug")
+        
+        try:
+            plot.plot_bU(   elem, U,     b, True)#, xlims=[-3.5,0.], ylims=[10., 16.5])
+        except:
+            print("plotting bU failed.  prolley a bug")
+        """
+        data = [item.data[elem] for item in survivors] 
+
+
+        #if elem=='Si':
+        #    for i in range(len(column)):
+        #        column[i]+=1.34  #ISM to popII
+
+           
+        plot.plot_ionization_(elem, all_data, xlims=[min(U), max(U)])#, xlims=[1.,5.], ylims=[10., 16.5])
+        plot.plot_NT(   elem, temp,  column, hcol, True)#, xlims=[1.,5.], ylims=[10., 16.5])
+        plot.plot_NU(   elem, U,     column, hcol, True)#, xlims=[-3.5,0.], ylims=[10., 16.5])
+
+        plot.plot_NZ(   elem, Z,     column, hcol, True)#, xlims=[-4.,-0.5], ylims=[10., 16.5])
+        plot.plot_Nhden(elem, column,hcol,   hden, True)#, xlims=[-3.5,1.5], ylims=[10., 16.5])
+        try:
+            pass#plot.plot_frac( elem, U,     column)
+        except: 
+            print('cannot run plot_frac')
+
+
+
+    for elem in config.to_plot.keys():
+        for trans in config.to_plot[elem]:
+            try:
+                pass                
+                #plot.plot_N(elem, survivors,trans,True)
+            except IndexError:
                 pass
 
-        state = int(state)
-        if qty in list(input_dict.keys())+['b']:
-            try:    
-                out[name].append(state, **{qty:[low,best,hi]})
-            except KeyError:
-                out[name] = ObsData(name, state, **{qty:[low,best,hi]})
-        else:
-            raise Exception(qty+" not in "+str(list(input_dict.keys()) + ['b']))
-    return out
+    pt4=time()
+    print("plot and finish: %lf" % (pt4-pt3))
 
-
-def filter_data(indata, key, bounds, element_key=None, state=None):
-    """
-    filter list of Model instances by key,
-
-    input params:
-    -------------
-    indata : list of model instances
-    element_key: element
-    state: if looking at specific element, ionization state needed
-    key : key of data to look at    
-    bounds: list of constraints.  [min, max]
-
-    output:
-    --------
-    list of model instances
-    
-    """
-    def cond(item):
-        if element_key is None:
-            return bounds[0]<=getattr(item,key)<=bounds[-1]
-        else:
-            return bounds[0]<=item.get_elem(element_key,state,key,False)<=bounds[-1]
-    
-    return [item for item in indata if cond(item)]
-    
 
 
 if __name__ == '__main__':
-
-    pth=paths['output_path']
-    print(pth)
-    outputs = [os.path.join(pth,f) for f in os.listdir(pth)]
-    #stored as list of Model instances
-
-    all_data = []
-    assert(len(outputs)>1)
-    for item in outputs:
-        try:
-            print("parsing model: "+item.split(os.sep)[-1])
-            all_data.append(Model(item))
-        except:
-            raise
-            warnings.warn('model '+item+' has critical issues.  skipping')       
-            pass
-
-    assert(len(all_data)>1)
-
-    obs_vals = get_observed()
-
-    #print(search(obs_vals, all_data))
-
-    #filter values out here
-    #sys.exit()
-
-    all_data = filter_data(all_data, 'Z', [-4.5, -1.])
-    all_data = filter_data(all_data, 'U', [-4., -1.])
-    #all_data = filter_data(all_data, 'hden', [-2.6, -1.2])
-    #all_data = filter_data(all_data, 'temp', [0., 4.4], 'H', state=0)
-    #all_data = filter_data(all_data, 'column', [-30.,obs_vals['Si'].get('column',1)],'Si',state=1)
-    #all_data = filter_data(all_data, 'column', obs_vals['Si'].get('column',2, True),'Si',state=2)
-    #all_data = filter_data(all_data, 'column', obs_vals['Si'].get('column',3, True),'Si',state=3)
-    #all_data = filter_data(all_data, 'column', obs_vals['C'].get('column',1, True),'C',state=1)
-    #all_data = filter_data(all_data, 'column', obs_vals['C'].get('column',2, True),'C',state=2)
-    #all_data = filter_data(all_data, 'column', obs_vals['O'].get('column',0, True),'O',state=0)
-    #all_data = filter_data(all_data, 'column', obs_vals['O'].get('column',5, True),'O',state=5)
-    #all_data = filter_data(all_data, 'temp', [4.5,5.],'Si',state=2)
-    #all_data = filter_data(all_data, 'temp', [4.5,5.0],'C',state=2)
-
-
-
-
-
-    """
-    all_data = [model for model in all_data if 2.5<K_to_b('Si',model.elem['Si'].temp[2][1])<10.]
-    all_data = [model for model in all_data if 17.5<K_to_b('H',model.elem['H'].temp[0][1])<18.8]
-    all_data = [model for model in all_data if 17.3<model.elem['H'].column[0][1]<17.4]
-    all_data = [model for model in all_data if 10.<model.elem['Si'].column[2][1]<11.7]
-    all_data = [model for model in all_data if model.elem['Si'].column[3][1]<11.1]
-    all_data = [model for model in all_data if model.elem['Si'].column[1][1]<11.1]
-    all_data = [model for model in all_data if model.elem['C'].column[3][1]<11.3]
-    all_data = [model for model in all_data if model.elem['C'].column[0][1]<12.6]
-    all_data = [model for model in all_data if model.elem['C'].column[1][1]<12.0]
-    all_data = [model for model in all_data if model.elem['O'].column[0][1]<12.5]
-    all_data = [model for model in all_data if model.elem['O'].column[0][1]<12.3]
-    """
-
-    #assert(len(all_data)>0)
-    #now plot it all
-    hdat = write_out(all_data, 'H', return_data=True)
-    hcol = np.array( [ item[0] for item in hdat['column'] ] )
-    for element in ['Si', 'C', 'O']:
-        bounds = None#[obs_vals[element].column[2][0], obs_vals[element].column[2][2]]
-        data = write_out(all_data, element,return_data=True)  
-
-
-        assert(len(data.keys())>3)
-        assert(len(data['column'])>3)
-
-        #Z = filter_data(outdata, 'Z', [-4.2,-2.0])
-        plot.plot_N(element,data['column'],hdat['column'],bounds)
-        plot.plot_NT(element, data['temp'], data['column'], hcol, bounds)
-        plot.plot_NU(element, data['U'], data['column'], hcol, bounds)
-        plot.plot_NZ(element, data['Z'], data['column'], hcol, bounds)
-        plot.plot_frac(element, data['U'], data['column'])
-        plot.plot_Nhden(element,data['column'],hcol, data['hden'],bounds)
+    main()
 
 
