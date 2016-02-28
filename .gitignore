@@ -8,4 +8,8 @@ output/*
 observed/*
 zlim.py
 *.bak
+<<<<<<< HEAD
 *.tex
+=======
+*.txt
+>>>>>>> 70bd8703a267b22a816feec9ec803ffaaa7ac5ba

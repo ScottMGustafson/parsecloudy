@@ -31,8 +31,13 @@ for item in open(paths['solar_abundance']):
     item=item.split()
     solar[item[0]] = float(item[1])    
 
+<<<<<<< HEAD
 #plt.rc('text', usetex=True)
 #plt.rc('font', family='serif')
+=======
+plt.rc('text', usetex=True)
+plt.rc('font', family='serif',size=16)
+>>>>>>> 70bd8703a267b22a816feec9ec803ffaaa7ac5ba
 
 color_map={
     0:'ko',
@@ -126,6 +131,7 @@ def plot_NT(elem,T,N,hcol,bounds=False):
         y = np.array(N[i])
 
         #x,y,hcol = trim(x,y,hcol)
+<<<<<<< HEAD
         y = hcol[0] - y
         plt.plot(x, y, color_map[i],label=ion_state(i,elem))
         xlims=[np.amin(x), np.amax(x)]
@@ -205,6 +211,26 @@ def plot_bT(elem,T,b,bounds=False):
 
 
 def plot_NU(elem,U,N, hcol,bounds=False):
+=======
+        y = hcol - y
+        ax.plot(x, y, color_map[i],label=ion_state(i,element))
+    plt.ylabel(r"$log(N_{$HI$}/N)$")
+    plt.xlabel(r"log(T)")
+    xlims=[3.6,5.0]
+    ylims=[0.,20.]
+    plt.xlim(xlims)
+    plt.ylim(ylims)
+
+    if not bounds is None: 
+        l = 17.409 - max(bounds)
+        u = 17.415 - min(bounds)
+        plt.fill([xlims[0],xlims[1],xlims[1],xlims[0]], [l,l,u,u], '0.50', alpha=0.2, edgecolor='b')
+
+    plt.savefig('plots/'+element+"NT.png")
+    return
+
+def plot_NU(element,U,N, hcol,bounds=None):
+>>>>>>> 70bd8703a267b22a816feec9ec803ffaaa7ac5ba
     """
     plot N versus ionization parameter U
     parameters:
@@ -220,6 +246,7 @@ def plot_NU(elem,U,N, hcol,bounds=False):
         x = np.array(U,dtype=np.float)
         y = np.array(N[i])
         #x,y,hcol = trim(x,y,hcol)
+<<<<<<< HEAD
         y = hcol[0] - y
 
 
@@ -307,6 +334,27 @@ def plot_bU(elem,U,b,bounds=False):
 
 
 def plot_NZ(elem,Z,N, hcol,bounds=False):
+=======
+        y = hcol - y
+        ax.plot(x, y, color_map[i],label=ion_state(i,element))
+    xlims=[-10.2,0.2]
+    ylims=[0.,20.]
+    plt.xlim(xlims)
+    plt.ylim(ylims)
+    plt.ylabel(r"$log(N_{$HI$}/N)$")
+    plt.xlabel(r"U")
+    if not bounds is None: 
+        l = 17.409 - max(bounds)
+        u = 17.415 - min(bounds)
+
+        plt.fill([xlims[0],xlims[1],xlims[1],xlims[0]], [l,l,u,u], '0.50', alpha=0.2, edgecolor='b')
+
+        #plt.fill_between(np.arange(xlims[0],xlims[1]),lower,upper,color='0.50')
+    plt.savefig('plots/'+element+"NU.png")
+    return
+
+def plot_NZ(element,Z,N, hcol,bounds=None):
+>>>>>>> 70bd8703a267b22a816feec9ec803ffaaa7ac5ba
     """
     plot N versus T
     parameters:
@@ -377,7 +425,21 @@ def plot_ionization(elem,U,N,hcol):
         x = np.array(U,dtype=np.float)
         y = np.array(N[i])
         #x,y,hcol = trim(x,y,hcol)
+<<<<<<< HEAD
         #y = hcol[0] - y  #NHI-NX
+=======
+        y = hcol - y
+        ax.plot(x, y, color_map[i],label=ion_state(i,element))
+    xlims=[-5.0,0.]
+    ylims=[0.,20.]
+    plt.xlim(xlims)
+    plt.ylim(ylims)
+    plt.ylabel(r"$log(N_{$HI$}/N)$")
+    plt.xlabel(r"Z")
+    if not bounds is None: 
+        l = 17.409 - max(bounds)
+        u = 17.415 - min(bounds)
+>>>>>>> 70bd8703a267b22a816feec9ec803ffaaa7ac5ba
 
 
         plt.plot(x, y, color_map[i],label=ion_state(i,elem))
@@ -389,6 +451,33 @@ def plot_ionization(elem,U,N,hcol):
 
     plt.show()
 
+<<<<<<< HEAD
+=======
+    xbounds=[]  #i-indices of datapts within bounds 
+    n=[]
+    for i in range(len(N)):
+        if min(bounds)<=N[i][2][1]<=max(bounds):
+            xbounds.append(i)  
+        num=sum([ 10.**N[i][j][1] for j in range(len(N[i]))  ])
+        n.append(np.log10(num))
+    nH = np.array([np.log10(10.**item[0][1] + 10.**item[1][1] + 10.**item[2][1]) for item in hcol])  #get total column for HI, HI and H2
+    x = np.array(np.array(n) - nH -(solar[element] - solar['H']),dtype=np.float)
+    y = np.array([item[2] for item in N],dtype=np.float)
+    ax.plot(x, y, 'ko')
+    xlims=[-5.0,-2.]
+    ylims=[10.,15.]
+    plt.xlim(xlims)
+    plt.ylim(ylims)
+    plt.ylabel(r"$log(N_{"+element+r" III})$")
+    plt.xlabel(r"["+element+r"/H]$")
+    if not bounds is None: 
+        ly = max(bounds)
+        uy = min(bounds)
+        lx= min(list(x[xbounds]))
+        ux= max(list(x[xbounds]))
+        plt.fill([lx,ux,ux,lx], [ly,ly,uy,uy], '0.50', alpha=0.2, edgecolor='b')
+    plt.savefig('plots/'+element+"N_NH.png")
+>>>>>>> 70bd8703a267b22a816feec9ec803ffaaa7ac5ba
 
 
 def plot_ionization_(elem,model_lst,xlims=None):
@@ -500,6 +589,7 @@ def plot_NZ(elem,Z,N, hcol,bounds=False):
         x = np.array(Z,dtype=np.float)
         y = np.array(N[i])
         #x,y,hcol = trim(x,y,hcol)
+<<<<<<< HEAD
         y = hcol[0] - y  #NHI-NX
 
         xlims=[0.75*np.amin(x), 1.25*np.amax(x)]
@@ -577,6 +667,17 @@ def plot_N(elem,data,trans=0,bounds=True):
     assert(x.shape[0]==y.shape[0]>2)
     xlims=[np.amin(x), np.amax(x)]
     ylims=[np.amin(y), np.amax(y)]
+=======
+        y = hcol - y
+        ax.plot(x, y, color_map[i],label=ion_state(i,element))
+
+    xlims=[-3.5,3.5]
+    ylims=[0.,20.]
+    plt.xlim(xlims)
+    plt.ylim(ylims)
+    plt.ylabel(r"$log(N_{$HI$}/N)$")
+    plt.xlabel(r"$log(n_{$H$})$")
+>>>>>>> 70bd8703a267b22a816feec9ec803ffaaa7ac5ba
     if bounds: 
         try:
             ly = observed[elem][trans]["column"][2]

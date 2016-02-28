@@ -8,9 +8,57 @@ import warnings
 from time import time
 
 
+<<<<<<< HEAD
 
 def main():
     pt0 = time()
+=======
+    output:
+
+    -------
+    if return_data is false:
+        data file named `<element>_<key>.dat` of the format:
+        (assuming element name X...)
+            ```
+            <datum for X_I>  <datum for X_II>  <datum for X_III (or H2 if X==H)>
+
+            ```
+    if return_data is True:
+        list of lists in the same format as above
+
+    """
+    if filter_vals:
+        state = kwargs.get(state,None)
+        bounds= kwargs.get(bounds,None)
+        data = filter_data(data, key, bounds, element, state)
+
+    elems = [ item.elem[element] for item in data ] 
+    ret_dict = {}
+    for key in list(input_dict.keys()):
+        ret_dict[key] = [ getattr(item,key) for item in elems ]
+    ret_dict['Z']=[item.Z for item in data]
+    ret_dict['U']=[item.U for item in data]
+    ret_dict['hden']=[item.hden for item in data]
+    return ret_dict
+    
+def search(observed_vals, model_data):
+    """
+    convert observed vals into a Model instance with tolerances defined by 
+    upper and lower limits:  each entry like 
+      `{ionname : {ion : num, qty1 : [best, lowest, highest], qty2 : [b,l,h], ...} }`
+    ion is which state its in.  0=Neutral, 1=singly ionized, etc
+    qty is any quantity like logN, logU, etc
+    
+    suppose you observed CIV with logN=14+/-0.1.
+    entry would be:
+    '{ C: { ion:3, column:[14,13.9,14.1] } }'
+    
+    input params:
+    =============
+    observed_vals: a list of ObsData instances corresponding to all observed 
+        quantities.  For now this means only one absorption system.
+    model_data: list of Model instances
+>>>>>>> 70bd8703a267b22a816feec9ec803ffaaa7ac5ba
     
     all_data = []
     survivors=[]
@@ -148,6 +196,7 @@ def main():
         try:
             b=[ [K_to_b(elem,item) for item in temp[i]] for i in range(len(temp)) ]
         except:
+<<<<<<< HEAD
             print("parsing b failed.  prolley a bug")
             raise
         try:
@@ -196,5 +245,38 @@ def main():
 
 if __name__ == '__main__':
     main()
+=======
+            warnings.warn('model '+item+' has critical issues.  skipping')       
+
+    obs_vals = get_observed()
+    #print(search(obs_vals, all_data))
+
+    #filter values out here
+    #sys.exit()
+    #all_data = filter_data(all_data, 'Z', [-4.5, -2.5])
+    all_data = filter_data(all_data, 'U', [-5., 0.])
+    #all_data = filter_data(all_data, 'hden', [-2.6, -1.2])
+    #all_data = filter_data(all_data, 'temp', [0., 4.4], 'H', state=0)
+    #all_data = filter_data(all_data, 'temp', [-30.,obs_vals['Si'].get('temp',2)],'Si',state=2)
+    #all_data = filter_data(all_data, 'temp', [-30.,obs_vals['C'].get('temp',2)],'C',state=2)
+
+    #assert(len(all_data)>0)
+
+    #now plot it all
+    hdat = write_out(all_data, 'H', return_data=True)
+    hcol = np.array( [ item[0] for item in hdat['column'] ] )
+    for element in ['Si', 'C']:
+        print(element)
+        bounds = [obs_vals[element].column[2][0],obs_vals[element].column[2][2]]
+        data = write_out(all_data, element,return_data=True)  
+
+        #Z = filter_data(outdata, 'Z', [-5.2,-1.2])
+        #plot.plot_N(element,data['column'],hdat['column'],bounds)
+        #plot.plot_NT(element, data['temp'], data['column'], hcol, bounds)
+        #plot.plot_NU(element, data['U'], data['column'], hcol, bounds)
+        #plot.plot_NZ(element, data['Z'], data['column'], hcol, bounds)
+        plot.plot_frac(element, data['U'], data['column'])
+        #plot.plot_Nhden(element,data['column'],hcol,data['hden'],bounds)
+>>>>>>> 70bd8703a267b22a816feec9ec803ffaaa7ac5ba
 
 
