@@ -33,38 +33,6 @@ def main():
                                                    a[2]+1.34))
                 t+=1
 
-            """
-            pass: 1
-            CIII: temp 4 -- 4.29
-                    Z  == -4.33 -- -1.
-            SiII:  Z<-1.63
-
-
-            pass 2
-            CIII:  T=4.03--4.29
-            CIII:   U>-4.56
-            SiIII:  SiIII nh<-0.3
-
-
-            pass 3
-            CIII:  Z<-1.9
-            SiIII:  Z<-2.48
-
-            pass 4:  
-            CIII:  U>-4.05
-            CIII:  nh<-.85
-
-            SiIII:  U>-4.22
-            SiII:  Z<-2.59
-            SiIII:  nh<-0.7
-
-
-            pass 5:
-            SiII:  Z<-2.77
-
-            final pass:
-            [HI/H] = -1.33 -- -2.54
-            """
             all_data.append(mod)
             if 4.03<mod.data['H'][0]['temp'][1]<4.3 \
                 and -4.33<float(mod.data['Z'])<-2.77\
@@ -88,9 +56,6 @@ def main():
         return
     else:
         print("%d models survived."%len(survivors))
-    #for item in survivors:
-    #    str(item)
-
 
     hdat, hcol= [], [[],[],[]]
     for item in survivors:
@@ -110,12 +75,6 @@ def main():
 
     pt3=time()
     print("get hcol: %lf"%(pt3-pt2))
-
-    #survivors = [item for item in survivors if float(item.data['Z'])<-2.]
-    #survivors = [item for item in survivors if float(item.data['temp'])>4.08]
-    #survivors = [item for item in survivors if float(item.data['U'])<-2.]
-    #survivors = [item for item in survivors if float(item.data['hden'])<-1.]
-
 
 
 
@@ -162,12 +121,6 @@ def main():
         """
         data = [item.data[elem] for item in survivors] 
 
-
-        #if elem=='Si':
-        #    for i in range(len(column)):
-        #        column[i]+=1.34  #ISM to popII
-
-           
         plot.plot_ionization_(elem, all_data, xlims=[min(U), max(U)])#, xlims=[1.,5.], ylims=[10., 16.5])
         plot.plot_NT(   elem, temp,  column, hcol, True)#, xlims=[1.,5.], ylims=[10., 16.5])
         plot.plot_NU(   elem, U,     column, hcol, True)#, xlims=[-3.5,0.], ylims=[10., 16.5])
@@ -175,7 +128,7 @@ def main():
         plot.plot_NZ(   elem, Z,     column, hcol, True)#, xlims=[-4.,-0.5], ylims=[10., 16.5])
         plot.plot_Nhden(elem, column,hcol,   hden, True)#, xlims=[-3.5,1.5], ylims=[10., 16.5])
         try:
-            pass#plot.plot_frac( elem, U,     column)
+            plot.plot_frac( elem, U,     column)
         except: 
             print('cannot run plot_frac')
 
@@ -184,8 +137,7 @@ def main():
     for elem in config.to_plot.keys():
         for trans in config.to_plot[elem]:
             try:
-                pass                
-                #plot.plot_N(elem, survivors,trans,True)
+                plot.plot_N(elem, survivors,trans,True)
             except IndexError:
                 pass
 
