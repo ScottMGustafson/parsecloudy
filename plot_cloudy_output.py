@@ -402,9 +402,6 @@ def plot_ionization_(elem,model_lst,xlims=None):
          -3.4,-3.2,-3.0,-2.8,
          -2.6,-2.4,-2.2]
     for i in to_plot[elem]:
-        plt.clf()
-
-        
         if xlims:
             l,u = observed[elem][i]["column"][0], observed[elem][i]["column"][2]
             if l==-30.:  l=0.   

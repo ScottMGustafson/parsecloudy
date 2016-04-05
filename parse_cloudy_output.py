@@ -6,7 +6,7 @@ from core import *
 from variousutils import getNonBlank, get_ind, ion_state, K_to_b
 import warnings
 from time import time
-
+import pickle
 
 
 def main():
@@ -57,6 +57,11 @@ def main():
     else:
         print("%d models survived."%len(survivors))
 
+
+    if input("save model output?") in ['y', 'yes']:
+        dump_name=input('filename')
+        pickle.dump(survivors,open(dump_name, "wb"))
+
     hdat, hcol= [], [[],[],[]]
     for item in survivors:
         try:
@@ -86,10 +91,10 @@ def main():
 
     
 
-    plot.plot_TZ(temp,Z)
-    plot.plot_ZU(U,Z)
-    plot.plot_NHIH(survivors,True)
-    plot.plot_nhU(hden,U)
+    #plot.plot_TZ(temp,Z)
+    #plot.plot_ZU(U,Z)
+    #plot.plot_NHIH(survivors,True)
+    #plot.plot_nhU(hden,U)
 
 
     for elem in config.to_plot.keys():
@@ -122,15 +127,15 @@ def main():
         data = [item.data[elem] for item in survivors] 
 
         plot.plot_ionization_(elem, all_data, xlims=[min(U), max(U)])#, xlims=[1.,5.], ylims=[10., 16.5])
-        plot.plot_NT(   elem, temp,  column, hcol, True)#, xlims=[1.,5.], ylims=[10., 16.5])
-        plot.plot_NU(   elem, U,     column, hcol, True)#, xlims=[-3.5,0.], ylims=[10., 16.5])
+        #plot.plot_NT(   elem, temp,  column, hcol, True)#, xlims=[1.,5.], ylims=[10., 16.5])
+        #plot.plot_NU(   elem, U,     column, hcol, True)#, xlims=[-3.5,0.], ylims=[10., 16.5])
 
-        plot.plot_NZ(   elem, Z,     column, hcol, True)#, xlims=[-4.,-0.5], ylims=[10., 16.5])
-        plot.plot_Nhden(elem, column,hcol,   hden, True)#, xlims=[-3.5,1.5], ylims=[10., 16.5])
-        try:
-            plot.plot_frac( elem, U,     column)
-        except: 
-            print('cannot run plot_frac')
+        #plot.plot_NZ(   elem, Z,     column, hcol, True)#, xlims=[-4.,-0.5], ylims=[10., 16.5])
+        #plot.plot_Nhden(elem, column,hcol,   hden, True)#, xlims=[-3.5,1.5], ylims=[10., 16.5])
+        #try:
+        #    plot.plot_frac( elem, U,     column)
+        #except: 
+        #    print('cannot run plot_frac')
 
 
 
