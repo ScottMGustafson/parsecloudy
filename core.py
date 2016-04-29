@@ -77,7 +77,7 @@ class Model(object):
         self.fname=fname
 
 
-    def append_datum(self, name, trans, qty, value=defaults):
+    def append_datum(self, name, species, qty, value=defaults):
         """
         append a data entry into data dict
         """    
@@ -90,22 +90,22 @@ class Model(object):
             raise FormatError()
         
         if name in self.data.keys():
-            if trans in self.data[name].keys():
-                self.data[name][trans][qty] = value
+            if species in self.data[name].keys():
+                self.data[name][species][qty] = value
             else:
-                self.data[name][trans] = {qty:value}
+                self.data[name][species] = {qty:value}
         else:
-            self.data[name] = {trans: {qty:value}}
+            self.data[name] = {species: {qty:value}}
 
-    def get(self, name, trans, qty, errors=False, observed=False):
+    def get(self, name, species, qty, errors=False, observed=False):
 
         data = config.observed if observed else self.data
 
         try:
             if errors:
-                return data[name][trans][qty]
+                return data[name][species][qty]
             else:
-                return data[name][trans][qty][1]
+                return data[name][species][qty][1]
         except KeyError:
             print("available keys: ",data.keys(),"\nchosen key ",name,'\n\n', 
                 file=sys.stderr) 
@@ -122,23 +122,23 @@ class Model(object):
         return [self.data[atom][i][qty] for i in range(0,config.ions[atom])]
 
     @staticmethod
-    def get_qty_lst(modellist, atom, qty, trans, errors=False):
+    def get_qty_lst(modellist, atom, qty, species, errors=False):
         out=[]
         for item in modellist:
             try:        
                 if errors:
-                    out.append(item.data[atom][trans][qty])
+                    out.append(item.data[atom][species][qty])
                 else:
-                    out.append(item.data[atom][trans][qty][1])
+                    out.append(item.data[atom][species][qty][1])
             except KeyError:
-                if (trans+1)>len(item.data[atom].keys()):
+                if (species+1)>len(item.data[atom].keys()):
                     pass
                 else:
-                    print("\n\natom=%s transition=%d qty=%s"%(atom, trans, qty),
+                    print("\n\natom=%s species=%d qty=%s"%(atom, species, qty),
                         file=sys.stderr)
                     print("available quantities:\n  ", config.input_dict.keys(),
                         file=sys.stderr) 
-                    print("this datum's keys:\n  ",item.data[atom][trans].keys(),
+                    print("this datum's keys:\n  ",item.data[atom][species].keys(),
                         file=sys.stderr) 
                     raise
         return out
@@ -224,31 +224,31 @@ def _filter(model):
     if not ("H" in model.data.keys()):
         return False
     for atom in config.constraints.keys():
-        for trans in config.constraints[atom].keys():
-            for attr in config.constraints[atom][trans].keys():
+        for species in config.constraints[atom].keys():
+            for attr in config.constraints[atom][species].keys():
                 if attr=="b":  #for b, we can only do lower limits since cannot a priori know the thermal contribution to line width
-                    b=K_to_b(atom,model.data[atom][int(trans)]["temp"][1]) #this will be lower than the actual line width
+                    b=K_to_b(atom,model.data[atom][int(species)]["temp"][1]) #this will be lower than the actual line width
                     mod=[b,b,-30.]
 
                 else:
                     try:
-                        mod=model.data[atom][int(trans)][attr]
-                        #mod=model.get(atom, int(trans), attr, errors=True)
+                        mod=model.data[atom][int(species)][attr]
+                        #mod=model.get(atom, int(species), attr, errors=True)
                     except KeyError:
                         print("no key called \"%s\""%(attr))
                         #print("input is get(%s, %d, %s)"%(
-                        #    atom, int(trans), attr),file=sys.stderr
+                        #    atom, int(species), attr),file=sys.stderr
                         #)
                         return False
-                obs = config.constraints[atom][trans][attr]
+                obs = config.constraints[atom][species][attr]
                 assert(len(obs)==len(mod)==3) 
                 if not compare(obs,mod):  
                     return False
                 for key in config.input_dict.keys():
                     try:
-                        assert(key in model.data[atom][trans].keys())
+                        assert(key in model.data[atom][species].keys())
                     except AssertionError:
-                        print("%s not in "%(key),model.data[atom][trans].keys(),
+                        print("%s not in "%(key),model.data[atom][species].keys(),
                             file=sys.stderr) 
                         raise
     return True
@@ -450,7 +450,7 @@ def mult_lines(lst,keys=list(config.elem_names.keys())):
                                 str(out_list))
     return out_list
 
-def append_datum(data, name, trans, qty, value=defaults):
+def append_datum(data, name, species, qty, value=defaults):
     """
     append a data entry into data dict
     """    
@@ -463,12 +463,12 @@ def append_datum(data, name, trans, qty, value=defaults):
         raise Exception
     
     if name in data.keys():
-        if trans in data[name].keys():
-            data[name][trans][qty] = value
+        if species in data[name].keys():
+            data[name][species][qty] = value
         else:
-            data[name][trans] = {qty:value}
+            data[name][species] = {qty:value}
     else:
-        data[name] = {trans: {qty:value}}
+        data[name] = {species: {qty:value}}
     return data
 
 def object_list(verbose=False):
